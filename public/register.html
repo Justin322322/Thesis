@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - AcadMeter</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/register_styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="register-container">
+            <div class="register-header">
+                <div class="logo-container">
+                    <a href="index.php">
+                        <img src="assets/img/acadmeter_logo.png" alt="AcadMeter Logo">
+                    </a>
+                </div>
+                <h1>AcadMeter</h1>
+            </div>
+            <div class="form-container">
+                <h2>Create an Account</h2>
+                <p>Register as:</p>
+                <div class="role-selection">
+                    <div class="role-option" data-toggle="modal" data-target="#studentModal">
+                        <i class="fas fa-user-graduate"></i>
+                        <p>STUDENT</p>
+                    </div>
+                    <div class="role-option" data-toggle="modal" data-target="#instructorModal">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <p>TEACHER</p>
+                    </div>
+                </div>
+                <div class="form-footer">
+                    <a href="login.html" class="btn-back">Back to sign in</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Registration Modal -->
+    <div class="modal fade" id="studentModal" tabindex="-1" aria-labelledby="studentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="studentModalLabel">Register as Student</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="student-success-message" class="alert alert-success" style="display: none;"></div>
+                    <div id="student-error-message" class="alert alert-danger" style="display: none;"></div>
+                    <form id="register-student-form" onsubmit="event.preventDefault(); submitForm('student');">
+                        <input type="hidden" name="user_type" value="student">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label for="student-last-name">Last Name</label>
+                                <input type="text" id="student-last-name" name="last_name" class="form-control" placeholder="Last name" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="student-first-name">First Name</label>
+                                <input type="text" id="student-first-name" name="first_name" class="form-control" placeholder="First name" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="student-middle-name">Middle Name</label>
+                                <input type="text" id="student-middle-name" name="middle_name" class="form-control" placeholder="Middle name (optional)">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="student-email">Email</label>
+                                <input type="email" id="student-email" name="email" class="form-control" placeholder="Valid email address" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="student-username">Username</label>
+                                <input type="text" id="student-username" name="username" class="form-control" placeholder="Username" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label for="student-sex">Sex</label>
+                                <select id="student-sex" class="form-control" name="sex" required>
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Rather not say</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="student-dob">Date of Birth</label>
+                                <input type="date" id="student-dob" name="dob" class="form-control" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="student-number">Student Number</label>
+                                <input type="text" id="student-number" name="student_number" class="form-control" placeholder="Student number" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="student-password">Password</label>
+                                <input type="password" id="student-password" name="password" class="form-control" placeholder="Password" required>
+                                <small class="form-text text-muted">At least 8 characters, 1 uppercase letter, and 1 number.</small>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="student-confirm-password">Confirm Password</label>
+                                <input type="password" id="student-confirm-password" name="confirm_password" class="form-control" placeholder="Re-enter password" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-12">
+                                <label for="student-grade">Grade</label>
+                                <select id="student-grade" class="form-control" name="grade" required>
+                                    <option value="">Select grade</option>
+                                    <option value="7">Grade 7</option>
+                                    <option value="8">Grade 8</option>
+                                    <option value="9">Grade 9</option>
+                                    <option value="10">Grade 10</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Register</button>
+                    </form>
+                    <button class="btn btn-secondary w-100 mt-3" data-dismiss="modal">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructor Registration Modal -->
+    <div class="modal fade" id="instructorModal" tabindex="-1" aria-labelledby="instructorModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="instructorModalLabel">Register as Instructor</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="instructor-success-message" class="alert alert-success" style="display: none;"></div>
+                    <div id="instructor-error-message" class="alert alert-danger" style="display: none;"></div>
+                    <form id="register-instructor-form" onsubmit="event.preventDefault(); submitForm('instructor');">
+                        <input type="hidden" name="user_type" value="instructor">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label for="instructor-last-name">Last Name</label>
+                                <input type="text" id="instructor-last-name" name="last_name" class="form-control" placeholder="Last name" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="instructor-first-name">First Name</label>
+                                <input type="text" id="instructor-first-name" name="first_name" class="form-control" placeholder="First name" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="instructor-middle-name">Middle Name</label>
+                                <input type="text" id="instructor-middle-name" name="middle_name" class="form-control" placeholder="Middle name (optional)">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="instructor-email">Email</label>
+                                <input type="email" id="instructor-email" name="email" class="form-control" placeholder="Valid email address" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="instructor-username">Username</label>
+                                <input type="text" id="instructor-username" name="username" class="form-control" placeholder="Username" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label for="instructor-sex">Sex</label>
+                                <select id="instructor-sex" class="form-control" name="sex" required>
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Rather not say</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="instructor-dob">Date of Birth</label>
+                                <input type="date" id="instructor-dob" name="dob" class="form-control" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="instructor-employee-number">Employee Number</label>
+                                <input type="text" id="instructor-employee-number" name="employee_number" class="form-control" placeholder="Employee number" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="instructor-password">Password</label>
+                                <input type="password" id="instructor-password" name="password" class="form-control" placeholder="Password" required>
+                                <small class="form-text text-muted">At least 8 characters, 1 uppercase letter, and 1 number.</small>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="instructor-confirm-password">Confirm Password</label>
+                                <input type="password" id="instructor-confirm-password" name="confirm_password" class="form-control" placeholder="Re-enter password" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Register</button>
+                    </form>
+                    <button class="btn btn-secondary w-100 mt-3" data-dismiss="modal">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        function submitForm(role) {
+            const formId = role === 'student' ? 'register-student-form' : 'register-instructor-form';
+            const errorMessageId = role === 'student' ? 'student-error-message' : 'instructor-error-message';
+            const successMessageId = role === 'student' ? 'student-success-message' : 'instructor-success-message';
+        
+            const formData = new FormData(document.getElementById(formId));
+        
+            fetch('../server/controllers/register_controller.php', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                const errorMessageContainer = document.getElementById(errorMessageId);
+                const successMessageContainer = document.getElementById(successMessageId);
+        
+                errorMessageContainer.style.display = 'none';
+                successMessageContainer.style.display = 'none';
+        
+                if (data.status === 'error') {
+                    errorMessageContainer.style.display = 'block';
+                    errorMessageContainer.innerHTML = data.message;
+                } else if (data.status === 'success') {
+                    successMessageContainer.style.display = 'block';
+                    successMessageContainer.innerHTML = data.message;
+                    document.getElementById(formId).reset();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>

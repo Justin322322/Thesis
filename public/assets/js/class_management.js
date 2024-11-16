@@ -1,40 +1,26 @@
-// C:\xampp\htdocs\AcadMeter\public\assets\js\class_management.js
+// File: C:\xampp\htdocs\AcadMeter\public\assets\js\class_management.js
 
 /**
- * Function to display Bootstrap alerts
- * @param {string} message - The alert message
- * @param {string} type - The type of alert (success, danger, warning, info)
+ * Function to display a Bootstrap modal with dynamic content
+ * @param {string} title - The modal title
+ * @param {string} message - The modal body content
+ * @param {string} type - The type of message (success, danger, warning, info)
  */
-function showAlert(message, type = 'success') {
-    const alertHTML = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    `;
-    $('#alertPlaceholder').html(alertHTML);
-}
+function showModal(title, message, type = 'info') {
+    // Set modal header color based on the type
+    const headerClass = {
+        'success': 'bg-success text-white',
+        'danger': 'bg-danger text-white',
+        'warning': 'bg-warning text-dark',
+        'info': 'bg-info text-white'
+    };
 
-/**
- * Function to filter options in a select element based on search input
- * @param {string} selectId - The ID of the select element
- * @param {string} searchId - The ID of the search input
- */
-function filterOptions(selectId, searchId) {
-    const searchInput = document.getElementById(searchId).value.toLowerCase();
-    const select = document.getElementById(selectId);
-    const options = select.getElementsByTagName('option');
+    $('#messageModalHeader').attr('class', 'modal-header ' + headerClass[type]);
+    $('#messageModalLabel').text(title);
+    $('#messageModalBody').html(message);
 
-    for (let i = 0; i < options.length; i++) {
-        const optionText = options[i].textContent.toLowerCase();
-        if (optionText.includes(searchInput)) {
-            options[i].style.display = '';
-        } else {
-            options[i].style.display = 'none';
-        }
-    }
+    // Show the modal
+    $('#messageModal').modal('show');
 }
 
 $(document).ready(function() {
@@ -49,12 +35,12 @@ $(document).ready(function() {
         const csrfToken = $('input[name="csrf_token"]').val();
 
         if (!sectionId) {
-            showAlert('Please select a section.', 'warning');
+            showModal('Warning', 'Please select a section.', 'warning');
             return;
         }
 
         if (!students || students.length === 0) {
-            showAlert('Please select at least one student to assign.', 'warning');
+            showModal('Warning', 'Please select at least one student to assign.', 'warning');
             return;
         }
 
@@ -65,29 +51,28 @@ $(document).ready(function() {
         $.ajax({
             url: '/AcadMeter/server/controllers/class_management_controller.php',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
+            data: {
                 action: 'assign_students_to_section',
                 section_id: sectionId,
                 students: students,
                 csrf_token: csrfToken
-            }),
-            dataType: 'json', // Ensure the response is treated as JSON
+            },
+            dataType: 'json',
+            traditional: true, // Needed when sending arrays via $.ajax
             success: function(response) {
                 if (response.status === 'success') {
-                    showAlert(response.message + '<br>' + response.already_assigned, 'success');
-                    // Optionally, refresh the page or update the roster dynamically
+                    showModal('Success', response.message, 'success');
+                    // Optionally, refresh the page to reflect changes
                     location.reload();
                 } else {
-                    showAlert(response.message || 'Failed to assign students to section.', 'danger');
+                    showModal('Error', response.message || 'Failed to assign students to section.', 'danger');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error assigning students:', error);
-                showAlert('An error occurred while assigning students.', 'danger');
+                showModal('Error', 'An error occurred while assigning students.', 'danger');
             },
             complete: function() {
-                // Re-enable the submit button
                 $('#assignStudentsForm button[type="submit"]').prop('disabled', false);
             }
         });
@@ -101,87 +86,83 @@ $(document).ready(function() {
         const csrfToken = $('input[name="csrf_token"]').val();
 
         if (!sectionId) {
-            showAlert('Please select a section.', 'warning');
+            showModal('Warning', 'Please select a section.', 'warning');
             return;
         }
 
         if (!subjectId) {
-            showAlert('Please select a subject to assign.', 'warning');
+            showModal('Warning', 'Please select a subject to assign.', 'warning');
             return;
         }
 
-        // Disable the submit button to prevent multiple submissions
         $('#assignSubjectForm button[type="submit"]').prop('disabled', true);
 
-        // Send AJAX request to assign subject
         $.ajax({
             url: '/AcadMeter/server/controllers/class_management_controller.php',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
+            data: {
                 action: 'assign_subject_to_section',
                 section_id: sectionId,
                 subject_id: subjectId,
                 csrf_token: csrfToken
-            }),
-            dataType: 'json', // Ensure the response is treated as JSON
+            },
+            dataType: 'json',
             success: function(response) {
                 if (response.status === 'success') {
-                    showAlert(response.message, 'success');
-                    // Optionally, refresh the page or update the roster dynamically
+                    showModal('Success', response.message, 'success');
+                    // Optionally, refresh the page to reflect changes
                     location.reload();
                 } else {
-                    showAlert(response.message || 'Failed to assign subject to section.', 'danger');
+                    showModal('Error', response.message || 'Failed to assign subject to section.', 'danger');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error assigning subject:', error);
-                showAlert('An error occurred while assigning the subject.', 'danger');
+                showModal('Error', 'An error occurred while assigning the subject.', 'danger');
             },
             complete: function() {
-                // Re-enable the submit button
                 $('#assignSubjectForm button[type="submit"]').prop('disabled', false);
             }
         });
     });
 
     // Handle Add New Subject
-    $('#addSubjectButton').on('click', function() {
+    $('#addSubjectForm').on('submit', function(event) {
+        event.preventDefault();
         const subjectName = $('#newSubject').val().trim();
         const csrfToken = $('input[name="csrf_token"]').val();
 
         if (!subjectName) {
-            showAlert('Please enter a subject name.', 'warning');
+            showModal('Warning', 'Please enter a subject name.', 'warning');
             return;
         }
 
-        // Disable the button to prevent multiple submissions
-        $('#addSubjectButton').prop('disabled', true);
+        $('#addSubjectForm button[type="submit"]').prop('disabled', true);
 
-        // Send AJAX request to add subject
         $.ajax({
             url: '/AcadMeter/server/controllers/class_management_controller.php',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
+            data: {
                 action: 'add_subject',
                 subject_name: subjectName,
                 csrf_token: csrfToken
-            }),
-            dataType: 'json', // Ensure the response is treated as JSON
+            },
+            dataType: 'json',
             success: function(response) {
                 if (response.status === 'success') {
-                    showAlert(response.message, 'success');
-                    // Append the new subject to the subject selection dropdowns
-                    $('#assignSubjectSelect').append(new Option(response.subject_name, response.subject_id));
-                    $('#assignSubjectSelect').val(response.subject_id); // Optionally select the new subject
-                    $('#newSubject').val('');
-                    // Also append to the Manage Subjects table
+                    showModal('Success', `The subject "${response.subject_name}" has been added successfully.`, 'success');
+                    // Update the subjects list
+                    $('#assignSubjectSelect').append(
+                        $('<option>', {
+                            value: response.subject_id,
+                            text: response.subject_name
+                        })
+                    );
                     $('#manageSubjectsTable tbody').append(`
                         <tr id="subjectRow${response.subject_id}">
                             <td>${response.subject_id}</td>
                             <td id="subjectName${response.subject_id}">${response.subject_name}</td>
-                            <td class="action-buttons">
+                            <td>
                                 <button class="btn btn-sm btn-info edit-subject" data-subject-id="${response.subject_id}" data-subject-name="${response.subject_name}">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
@@ -191,17 +172,18 @@ $(document).ready(function() {
                             </td>
                         </tr>
                     `);
+                    // Clear the input field
+                    $('#newSubject').val('');
                 } else {
-                    showAlert(response.message || 'Failed to add subject.', 'danger');
+                    showModal('Error', response.message || 'Failed to add subject.', 'danger');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error adding subject:', error);
-                showAlert('An error occurred while adding the subject.', 'danger');
+                showModal('Error', 'An error occurred while adding the subject.', 'danger');
             },
             complete: function() {
-                // Re-enable the button
-                $('#addSubjectButton').prop('disabled', false);
+                $('#addSubjectForm button[type="submit"]').prop('disabled', false);
             }
         });
     });
@@ -210,12 +192,8 @@ $(document).ready(function() {
     $(document).on('click', '.edit-subject', function() {
         const subjectId = $(this).data('subject-id');
         const subjectName = $(this).data('subject-name');
-
-        // Populate the modal fields
         $('#editSubjectId').val(subjectId);
         $('#editSubjectName').val(subjectName);
-
-        // Show the modal
         $('#editSubjectModal').modal('show');
     });
 
@@ -227,55 +205,38 @@ $(document).ready(function() {
         const csrfToken = $('input[name="csrf_token"]').val();
 
         if (!subjectName) {
-            showAlert('Subject name cannot be empty.', 'warning');
+            showModal('Warning', 'Subject name cannot be empty.', 'warning');
             return;
         }
 
-        // Disable the submit button to prevent multiple submissions
         $('#editSubjectForm button[type="submit"]').prop('disabled', true);
 
-        // Send AJAX request to update subject
         $.ajax({
             url: '/AcadMeter/server/controllers/class_management_controller.php',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
+            data: {
                 action: 'update_subject',
                 subject_id: subjectId,
                 subject_name: subjectName,
                 csrf_token: csrfToken
-            }),
-            dataType: 'json', // Ensure the response is treated as JSON
+            },
+            dataType: 'json',
             success: function(response) {
                 if (response.status === 'success') {
-                    showAlert(response.message, 'success');
-                    // Update the subject name in the Assign Subject dropdown
-                    $(`#assignSubjectSelect option[value="${subjectId}"]`).text(response.subject_name);
-                    // Update the subject name in the Manage Subjects table
+                    showModal('Success', response.message, 'success');
+                    // Update the subjects list
                     $(`#subjectName${subjectId}`).text(response.subject_name);
-                    // Update the subject name in the Class Roster headers if assigned
-                    $('.collapse').each(function() {
-                        const currentSection = $(this);
-                        const headerId = currentSection.attr('aria-labelledby');
-                        const header = $(`#${headerId}`);
-                        const button = header.find('button');
-                        // Use regex to replace the old subject name with the new one
-                        const regex = new RegExp(`( - Subject: )${response.old_subject_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                        const updatedText = button.html().replace(regex, `$1${response.subject_name}`);
-                        button.html(updatedText);
-                    });
-                    // Hide the modal
+                    $(`#assignSubjectSelect option[value="${subjectId}"]`).text(response.subject_name);
                     $('#editSubjectModal').modal('hide');
                 } else {
-                    showAlert(response.message || 'Failed to update subject.', 'danger');
+                    showModal('Error', response.message || 'Failed to update subject.', 'danger');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error updating subject:', error);
-                showAlert('An error occurred while updating the subject.', 'danger');
+                showModal('Error', 'An error occurred while updating the subject.', 'danger');
             },
             complete: function() {
-                // Re-enable the submit button
                 $('#editSubjectForm button[type="submit"]').prop('disabled', false);
             }
         });
@@ -285,12 +246,8 @@ $(document).ready(function() {
     $(document).on('click', '.delete-subject', function() {
         const subjectId = $(this).data('subject-id');
         const subjectName = $(`#subjectName${subjectId}`).text();
-
-        // Populate the modal fields
         $('#deleteSubjectId').val(subjectId);
         $('#deleteSubjectName').text(subjectName);
-
-        // Show the modal
         $('#deleteSubjectModal').modal('show');
     });
 
@@ -300,51 +257,34 @@ $(document).ready(function() {
         const subjectId = $('#deleteSubjectId').val();
         const csrfToken = $('input[name="csrf_token"]').val();
 
-        // Disable the submit button to prevent multiple submissions
-        $('#deleteSubjectForm button[type="submit"]').prop('disabled', true);
-
-        // Send AJAX request to delete subject
+        // Send AJAX request to delete the subject
         $.ajax({
             url: '/AcadMeter/server/controllers/class_management_controller.php',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
+            data: {
                 action: 'delete_subject',
                 subject_id: subjectId,
                 csrf_token: csrfToken
-            }),
-            dataType: 'json', // Ensure the response is treated as JSON
+            },
+            dataType: 'json',
             success: function(response) {
                 if (response.status === 'success') {
-                    showAlert(response.message, 'success');
-                    // Remove the subject from the Assign Subject dropdown
+                    // Display success pop-up
+                    showModal('Success', response.message, 'success');
+                    // Update UI accordingly
+                    $('#subjectRow' + subjectId).remove();
+                    // Optionally, remove the subject from the assign subject select dropdown
                     $(`#assignSubjectSelect option[value="${subjectId}"]`).remove();
-                    // Remove the subject row from the Manage Subjects table
-                    $(`#subjectRow${subjectId}`).remove();
-                    // Update sections that had this subject assigned
-                    $('.collapse').each(function() {
-                        const currentSection = $(this);
-                        const headerId = currentSection.attr('aria-labelledby');
-                        const header = $(`#${headerId}`);
-                        const button = header.find('button');
-                        // Use regex to remove " - Subject: Subject Name" regardless of trailing characters
-                        const regex = new RegExp(`( - Subject: )${response.old_subject_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                        const updatedText = button.html().replace(regex, ' - No Subject Assigned');
-                        button.html(updatedText);
-                    });
-                    // Hide the modal
+                    // Hide the delete modal
                     $('#deleteSubjectModal').modal('hide');
                 } else {
-                    showAlert(response.message || 'Failed to delete subject.', 'danger');
+                    // Display error pop-up
+                    showModal('Error', response.message, 'danger');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error deleting subject:', error);
-                showAlert('An error occurred while deleting the subject.', 'danger');
-            },
-            complete: function() {
-                // Re-enable the submit button
-                $('#deleteSubjectForm button[type="submit"]').prop('disabled', false);
+                console.error('Error:', error);
+                showModal('Error', 'An unexpected error occurred.', 'danger');
             }
         });
     });

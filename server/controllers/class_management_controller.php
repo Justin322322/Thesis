@@ -10,7 +10,7 @@ header('Content-Type: application/json');
 
 // Validate instructor session
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
-    echo json_encode(['status' => 'error', 'message' => 'Unauthorized access']);
+    sendResponse('error', 'Unauthorized access');
     exit;
 }
 
@@ -19,21 +19,32 @@ require_once '../../config/db_connection.php';
 /**
  * Function to validate CSRF token
  */
-function validate_csrf_token($data) {
-    if (!isset($data['csrf_token']) || !isset($_SESSION['csrf_token'])) {
-        return false;
-    }
-    return hash_equals($_SESSION['csrf_token'], $data['csrf_token']);
+function validate_csrf_token($csrf_token) {
+    return isset($csrf_token, $_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $csrf_token);
+}
+
+/**
+ * Function to send JSON response
+ */
+function sendResponse($status, $message, $data = []) {
+    echo json_encode(array_merge(['status' => $status, 'message' => $message], $data));
+}
+
+/**
+ * Function to log errors
+ */
+function logError($message) {
+    error_log($message . "\n", 3, __DIR__ . '/../../logs/error_log.txt');
 }
 
 // Check if the request is POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Retrieve JSON input
-    $data = json_decode(file_get_contents("php://input"), true);
+    // Retrieve form data
+    $data = $_POST;
 
     // Validate CSRF token
-    if (!validate_csrf_token($data)) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token']);
+    if (!validate_csrf_token($data['csrf_token'] ?? '')) {
+        sendResponse('error', 'Invalid CSRF token');
         exit;
     }
 
@@ -62,11 +73,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             break;
 
         default:
-            echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
+            sendResponse('error', 'Invalid action');
             break;
     }
 } else {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid request method']);
+    sendResponse('error', 'Invalid request method');
 }
 
 $conn->close();
@@ -82,7 +93,7 @@ function assignStudentsToSection($conn, $data) {
     $students = $data['students'] ?? [];
 
     if ($section_id <= 0 || empty($students)) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid section or students selection']);
+        sendResponse('error', 'Invalid section or students selection');
         return;
     }
 
@@ -125,17 +136,18 @@ function assignStudentsToSection($conn, $data) {
         // Commit transaction
         $conn->commit();
 
-        echo json_encode([
-            'status' => 'success',
-            'message' => "$inserted students assigned successfully.",
-            'already_assigned' => "$already_assigned students were already assigned to this section."
-        ]);
+        $message = "$inserted student(s) assigned successfully.";
+        if ($already_assigned > 0) {
+            $message .= " $already_assigned student(s) were already assigned to this section.";
+        }
+
+        sendResponse('success', $message);
     } catch (Exception $e) {
         // Rollback transaction on error
         $conn->rollback();
         // Log the error
-        error_log("Error assigning students: " . $e->getMessage(), 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Error assigning students: ' . $e->getMessage()]);
+        logError("Error assigning students: " . $e->getMessage());
+        sendResponse('error', 'Error assigning students: ' . $e->getMessage());
     }
 }
 
@@ -150,7 +162,7 @@ function assignSubjectToSection($conn, $data) {
     $subject_id = intval($data['subject_id'] ?? 0);
 
     if ($section_id <= 0 || $subject_id <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid section or subject selection']);
+        sendResponse('error', 'Invalid section or subject selection');
         return;
     }
 
@@ -172,13 +184,13 @@ function assignSubjectToSection($conn, $data) {
         // Commit transaction
         $conn->commit();
 
-        echo json_encode(['status' => 'success', 'message' => 'Subject assigned to section successfully.']);
+        sendResponse('success', 'Subject assigned to section successfully.');
     } catch (Exception $e) {
         // Rollback transaction on error
         $conn->rollback();
         // Log the error
-        error_log("Error assigning subject: " . $e->getMessage(), 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Error assigning subject: ' . $e->getMessage()]);
+        logError("Error assigning subject: " . $e->getMessage());
+        sendResponse('error', 'Error assigning subject: ' . $e->getMessage());
     }
 }
 
@@ -192,7 +204,7 @@ function addSubject($conn, $data) {
     $subject_name = trim($data['subject_name'] ?? '');
 
     if (empty($subject_name)) {
-        echo json_encode(['status' => 'error', 'message' => 'Subject name cannot be empty']);
+        sendResponse('error', 'Subject name cannot be empty');
         return;
     }
 
@@ -200,8 +212,8 @@ function addSubject($conn, $data) {
     $stmt_check = $conn->prepare("SELECT 1 FROM subjects WHERE LOWER(subject_name) = LOWER(?)");
     if (!$stmt_check) {
         // Log the error
-        error_log("Database error during subject existence check: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject existence check: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_check->bind_param("s", $subject_name);
@@ -210,7 +222,7 @@ function addSubject($conn, $data) {
 
     if ($stmt_check->num_rows > 0) {
         $stmt_check->close();
-        echo json_encode(['status' => 'error', 'message' => 'Subject already exists']);
+        sendResponse('error', 'Subject already exists');
         return;
     }
     $stmt_check->close();
@@ -219,23 +231,21 @@ function addSubject($conn, $data) {
     $stmt_insert = $conn->prepare("INSERT INTO subjects (subject_name) VALUES (?)");
     if (!$stmt_insert) {
         // Log the error
-        error_log("Database error during subject insertion: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject insertion: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_insert->bind_param("s", $subject_name);
 
     if ($stmt_insert->execute()) {
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Subject added successfully',
+        sendResponse('success', 'Subject added successfully', [
             'subject_id' => $stmt_insert->insert_id,
             'subject_name' => htmlspecialchars($subject_name)
         ]);
     } else {
         // Log the error
-        error_log("Database error during subject insertion: " . $stmt_insert->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Failed to add subject: ' . $stmt_insert->error]);
+        logError("Database error during subject insertion: " . $stmt_insert->error);
+        sendResponse('error', 'Failed to add subject: ' . $stmt_insert->error);
     }
 
     $stmt_insert->close();
@@ -252,15 +262,15 @@ function updateSubject($conn, $data) {
     $subject_name = trim($data['subject_name'] ?? '');
 
     if ($subject_id <= 0 || empty($subject_name)) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid subject ID or subject name']);
+        sendResponse('error', 'Invalid subject ID or subject name');
         return;
     }
 
     // Check if subject exists
     $stmt_check = $conn->prepare("SELECT subject_name FROM subjects WHERE subject_id = ?");
     if (!$stmt_check) {
-        error_log("Database error during subject existence check: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject existence check: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_check->bind_param("i", $subject_id);
@@ -269,7 +279,7 @@ function updateSubject($conn, $data) {
 
     if ($result->num_rows === 0) {
         $stmt_check->close();
-        echo json_encode(['status' => 'error', 'message' => 'Subject not found']);
+        sendResponse('error', 'Subject not found');
         return;
     }
 
@@ -279,22 +289,20 @@ function updateSubject($conn, $data) {
     // Update subject name
     $stmt_update = $conn->prepare("UPDATE subjects SET subject_name = ? WHERE subject_id = ?");
     if (!$stmt_update) {
-        error_log("Database error during subject update: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject update: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_update->bind_param("si", $subject_name, $subject_id);
 
     if ($stmt_update->execute()) {
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Subject updated successfully',
+        sendResponse('success', 'Subject updated successfully', [
             'subject_name' => htmlspecialchars($subject_name),
             'old_subject_name' => htmlspecialchars($existing_subject)
         ]);
     } else {
-        error_log("Database error during subject update: " . $stmt_update->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Failed to update subject: ' . $stmt_update->error]);
+        logError("Database error during subject update: " . $stmt_update->error);
+        sendResponse('error', 'Failed to update subject: ' . $stmt_update->error);
     }
 
     $stmt_update->close();
@@ -310,15 +318,15 @@ function deleteSubject($conn, $data) {
     $subject_id = intval($data['subject_id'] ?? 0);
 
     if ($subject_id <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid subject ID']);
+        sendResponse('error', 'Invalid subject ID');
         return;
     }
 
     // Check if subject exists and retrieve its name
     $stmt_check = $conn->prepare("SELECT subject_name FROM subjects WHERE subject_id = ?");
     if (!$stmt_check) {
-        error_log("Database error during subject existence check: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject existence check: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_check->bind_param("i", $subject_id);
@@ -327,7 +335,7 @@ function deleteSubject($conn, $data) {
 
     if ($result->num_rows === 0) {
         $stmt_check->close();
-        echo json_encode(['status' => 'error', 'message' => 'Subject not found']);
+        sendResponse('error', 'Subject not found');
         return;
     }
 
@@ -337,8 +345,8 @@ function deleteSubject($conn, $data) {
     // Check if the subject is assigned to any section
     $stmt_assigned = $conn->prepare("SELECT COUNT(*) as count FROM sections WHERE subject_id = ?");
     if (!$stmt_assigned) {
-        error_log("Database error during subject assignment check: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject assignment check: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_assigned->bind_param("i", $subject_id);
@@ -348,30 +356,27 @@ function deleteSubject($conn, $data) {
     $stmt_assigned->close();
 
     if ($count > 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Cannot delete subject. It is currently assigned to one or more sections.']);
+        sendResponse('error', 'Cannot delete subject. It is currently assigned to one or more sections.');
         return;
     }
 
     // Proceed to delete the subject
     $stmt_delete = $conn->prepare("DELETE FROM subjects WHERE subject_id = ?");
     if (!$stmt_delete) {
-        error_log("Database error during subject deletion: " . $conn->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logError("Database error during subject deletion: " . $conn->error);
+        sendResponse('error', 'Database error: ' . $conn->error);
         return;
     }
     $stmt_delete->bind_param("i", $subject_id);
 
     if ($stmt_delete->execute()) {
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Subject deleted successfully',
-            'old_subject_name' => htmlspecialchars($subject_name)
+        sendResponse('success', 'Subject deleted successfully', [
+            'deleted_subject_name' => htmlspecialchars($subject_name)
         ]);
     } else {
-        error_log("Database error during subject deletion: " . $stmt_delete->error, 3, __DIR__ . '/../../logs/error_log.txt');
-        echo json_encode(['status' => 'error', 'message' => 'Failed to delete subject: ' . $stmt_delete->error]);
+        logError("Database error during subject deletion: " . $stmt_delete->error);
+        sendResponse('error', 'Failed to delete subject: ' . $stmt_delete->error);
     }
 
     $stmt_delete->close();
 }
-?>

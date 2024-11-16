@@ -65,6 +65,10 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/AcadMeter/server/controllers/admin_dashboard_function.php?action=overview')
             .then(response => response.json())
             .then(data => {
+                if (data.status && data.status === 'error') {
+                    showErrorMessage(data.message);
+                    return;
+                }
                 document.getElementById('total-users').textContent = data.total_users || '0';
                 document.getElementById('pending-approvals-count').textContent = data.pending_approvals || '0';
                 document.getElementById('audit-logs').textContent = data.audit_logs || '0';
@@ -83,11 +87,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 const container = document.getElementById('pending-approvals-content');
                 container.innerHTML = '';
+                if (data.status && data.status === 'error') {
+                    container.innerHTML = `<p class="text-danger">${data.message}</p>`;
+                    return;
+                }
                 if (data.length === 0) {
                     container.innerHTML = '<p>No pending users.</p>';
                 } else {
                     let tableHTML = `
-                        <table class="table">
+                        <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -106,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td>${user.email}</td>
                                 <td>${user.status}</td>
                                 <td>
-                                    <button class="btn btn-success btn-sm" onclick="updateUserStatus(${user.user_id}, 'approve')">Approve</button>
+                                    <button class="btn btn-success btn-sm mr-2" onclick="updateUserStatus(${user.user_id}, 'approve')">Approve</button>
                                     <button class="btn btn-danger btn-sm" onclick="updateUserStatus(${user.user_id}, 'reject')">Reject</button>
                                 </td>
                             </tr>`;
@@ -129,11 +137,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 const container = document.getElementById('delete-users-content');
                 container.innerHTML = '';
+                if (data.status && data.status === 'error') {
+                    container.innerHTML = `<p class="text-danger">${data.message}</p>`;
+                    return;
+                }
                 if (data.length === 0) {
                     container.innerHTML = '<p>No users available for deletion.</p>';
                 } else {
                     let tableHTML = `
-                        <table class="table">
+                        <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -165,49 +177,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to update user status
-    window.updateUserStatus = function(userId, action) {
-        fetch('/AcadMeter/server/controllers/admin_dashboard_function.php?action=update_user_status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userId, userAction: action })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showSuccessMessage(data.message);
-                loadPendingUsers();
-                loadDashboardStats();
-                loadNotifications();
-            } else {
-                showErrorMessage(data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error updating user status:', error);
-            showErrorMessage('Failed to update user status. Please try again later.');
-        });
-    };
-
-    // Function to confirm and delete user
-    window.confirmDelete = function(userId) {
-        if (confirm("Are you sure you want to delete this user?")) {
-            fetch('/AcadMeter/server/controllers/admin_dashboard_function.php?action=delete_user', {
+    function updateUserStatus(userId, action) {
+        console.log('updateUserStatus called with:', userId, action);
+        if (confirm(`Are you sure you want to ${action} this user?`)) {
+            console.log(`Updating user ID ${userId} with action ${action}`);
+            fetch('/AcadMeter/server/controllers/admin_dashboard_function.php?action=update_user_status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userId })
+                body: JSON.stringify({ userId: userId, userAction: action })
             })
             .then(response => response.json())
             .then(data => {
-                showSuccessMessage(data.message);
-                loadDeleteUsers();
-                loadDashboardStats();
+                console.log('Update user status response:', data);
+                if (data.status === 'success') {
+                    console.log('Calling showSuccessMessage with:', data.message);
+                    showSuccessMessage(data.message);
+                    loadPendingUsers();
+                    loadDashboardStats();
+                    loadNotifications();
+                } else {
+                    console.log('Calling showErrorMessage with:', data.message);
+                    showErrorMessage(data.message || 'An error occurred while updating user status.');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating user status:', error);
+                showErrorMessage('Failed to update user status. Please try again later.');
+            });
+        }
+    }
+
+    // Function to confirm and delete user
+    function confirmDelete(userId) {
+        if (confirm("Are you sure you want to delete this user?")) {
+            console.log(`Deleting user ID ${userId}`);
+            fetch('/AcadMeter/server/controllers/admin_dashboard_function.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete_user', userId: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Delete user response:', data);
+                if (data.status === 'success') {
+                    showSuccessMessage(data.message);
+                    loadDeleteUsers();
+                    loadDashboardStats();
+                } else {
+                    showErrorMessage(data.message || 'An error occurred while deleting the user.');
+                }
             })
             .catch(error => {
                 console.error('Error deleting user:', error);
                 showErrorMessage('Failed to delete user. Please try again later.');
             });
         }
-    };
+    }
 
     // Load notifications
     function loadNotifications() {
@@ -218,20 +243,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const notificationItems = document.getElementById('notification-items');
                 notificationItems.innerHTML = '';
 
-                if (data && data.length > 0) {
+                if (data.status && data.status === 'error') {
+                    notificationItems.innerHTML = `<p class="text-danger">${data.message}</p>`;
+                    return;
+                }
+
+                if (data.length > 0) {
                     notificationCount.style.display = 'inline-block';
                     notificationCount.textContent = data.length;
 
                     data.forEach(notification => {
                         notificationItems.innerHTML += `
-                            <div class="notification-item">
+                            <div class="dropdown-item">
                                 <p>${notification.message}</p>
-                                <small>${notification.timestamp}</small>
+                                <small class="text-muted">${notification.timestamp}</small>
                             </div>`;
                     });
                 } else {
                     notificationCount.style.display = 'none';
-                    notificationItems.innerHTML = '<p>No new notifications.</p>';
+                    notificationItems.innerHTML = '<p class="dropdown-item">No new notifications.</p>';
                 }
             })
             .catch(error => {
@@ -258,17 +288,57 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // Show alert function
+    function showAlert(message, type) {
+        const alertPlaceholder = document.getElementById('alertPlaceholder');
+        const alertElement = document.createElement('div');
+        alertElement.className = `alert alert-${type}`;
+        const icon = type === 'success' ? '✅' : '❌';
+        alertElement.innerHTML = `
+            <div class="alert-content">
+                <span class="alert-icon">${icon}</span>
+                ${message}
+            </div>
+            <button type="button" class="close" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        `;
+        alertPlaceholder.appendChild(alertElement);
+
+        // Trigger reflow to enable animation
+        alertElement.offsetHeight;
+        alertElement.classList.add('show');
+
+        const closeButton = alertElement.querySelector('.close');
+        closeButton.addEventListener('click', () => {
+            alertElement.classList.remove('show');
+            alertElement.classList.add('hide');
+            setTimeout(() => alertElement.remove(), 300);
+        });
+
+        // Auto-dismiss the alert after 5 seconds
+        setTimeout(() => {
+            alertElement.classList.remove('show');
+            alertElement.classList.add('hide');
+            setTimeout(() => alertElement.remove(), 300);
+        }, 5000);
+    }
+
     // Show success message
     function showSuccessMessage(message) {
-        // Implement a toast or alert system to show success messages
-        alert(message); // Temporary solution, replace with a better UI component
+        showAlert(message, 'success');
     }
 
     // Show error message
     function showErrorMessage(message) {
-        // Implement a toast or alert system to show error messages
-        alert(message); // Temporary solution, replace with a better UI component
+        showAlert(message, 'danger');
     }
+
+    // Make functions globally accessible
+    window.updateUserStatus = updateUserStatus;
+    window.confirmDelete = confirmDelete;
+    window.showSuccessMessage = showSuccessMessage;
+    window.showErrorMessage = showErrorMessage;
 
     // Initial load
     loadDashboardStats();

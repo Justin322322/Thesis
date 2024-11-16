@@ -123,9 +123,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 
             <section id="user-management" class="content-section" style="display: none;">
                 <div class="card">
-                    <div class="card-header">
-                        <h3>Manage Users</h3>
-                    </div>
                     <div class="card-body">
                         <div class="tab-buttons">
                             <button class="tab-btn active" id="pending-approvals-btn" onclick="showTab('pending-approvals')">
@@ -156,5 +153,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     </div>
 
     <script src="./assets/js/admin_dashboard.js"></script>
+    <div id="alertPlaceholder" class="alert-container"></div>
 </body>
 </html>

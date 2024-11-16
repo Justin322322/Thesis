@@ -1,5 +1,6 @@
-<!-- C:\xampp\htdocs\AcadMeter\public\views\grade_management.php -->
 <?php
+$current_page = 'grade_management';
+
 // Check if the user is authenticated and has the Instructor role
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
     header('Location: /AcadMeter/public/login.php');
@@ -83,72 +84,7 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Grade Management</title>
-    <!-- Include Bootstrap CSS and Font Awesome for styling and icons -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="/AcadMeter/public/assets/css/grade_management.css">
-    <style>
-        /* Custom styles for better UX */
-        .card-header h4, .card-header h5 {
-            margin: 0;
-        }
-        .search-input {
-            margin-bottom: 10px;
-        }
-        /* Additional custom styles */
-        .tooltip-inner {
-            max-width: 200px;
-            /* Customize tooltip width */
-        }
-        .select-multiple {
-            height: 200px;
-            overflow-y: scroll;
-        }
-        /* Style for accordion buttons */
-        .accordion .card-header button {
-            text-align: left;
-            width: 100%;
-            color: #333;
-            text-decoration: none;
-            background: none;
-            border: none;
-            padding: 0;
-            font-size: 1.1rem;
-        }
 
-        .accordion .card-header button:focus {
-            outline: none;
-        }
-
-        .accordion .card-header button .fas {
-            margin-right: 10px;
-            transition: transform 0.2s;
-        }
-
-        .accordion .card-header button.collapsed .fas {
-            transform: rotate(-90deg);
-        }
-
-        .accordion .card-header button:not(.collapsed) .fas {
-            transform: rotate(0deg);
-        }
-
-        /* Additional styles for Delete and Update buttons */
-        .action-buttons {
-            float: right;
-        }
-        .action-buttons button {
-            margin-left: 5px;
-        }
-    </style>
-</head>
-<body>
 <div class="container mt-4">
     <h2>
         Grade Management 
@@ -474,14 +410,6 @@ if (empty($_SESSION['csrf_token'])) {
       </div>
     </div>
 
-    <!-- Include Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
-
-    <!-- Include External JavaScript File -->
-    <script src="/AcadMeter/public/assets/js/grade_management.js"></script>
-
     <!-- Add Subject Modal -->
     <div class="modal fade" id="addSubjectModal" tabindex="-1" aria-labelledby="addSubjectModalLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -510,8 +438,5 @@ if (empty($_SESSION['csrf_token'])) {
         </form>
       </div>
     </div>
-
 </div>
 
-</body>
-</html>

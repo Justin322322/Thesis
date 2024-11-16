@@ -439,4 +439,3 @@ if (empty($_SESSION['csrf_token'])) {
       </div>
     </div>
 </div>
-

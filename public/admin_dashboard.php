@@ -49,7 +49,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
         </aside>
 
         <main class="main-content">
-            <header class="top-bar">
+            <header class="top-bar" style="position: relative; z-index: 1000;">
                 <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle Sidebar">
                     <i class="fas fa-bars"></i>
                 </button>
@@ -146,6 +146,106 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="activity-logs" class="content-section" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="section-title"><i class="fas fa-history"></i> Activity Logs</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Action</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>2023-05-15 14:30:22</td>
+                                        <td>John Doe</td>
+                                        <td>User Login</td>
+                                        <td>Successful login from IP: 192.168.1.100</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2023-05-15 15:45:10</td>
+                                        <td>Jane Smith</td>
+                                        <td>Grade Update</td>
+                                        <td>Updated grades for Math 101</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2023-05-15 16:20:05</td>
+                                        <td>Admin</td>
+                                        <td>User Approval</td>
+                                        <td>Approved new user registration: Mark Johnson</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="reports" class="content-section" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="section-title"><i class="fas fa-chart-bar"></i> Reports</h3>
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" onclick="showReportTab('grade-distribution')">Grade Distribution</button>
+                            <button class="tab-btn" onclick="showReportTab('user-activity')">User Activity</button>
+                            <button class="tab-btn" onclick="showReportTab('system-performance')">System Performance</button>
+                        </div>
+                        <div class="tab-content">
+                            <div id="grade-distribution" class="tab-pane">
+                                <h4>Grade Distribution Report</h4>
+                                <p>Placeholder for grade distribution chart</p>
+                            </div>
+                            <div id="user-activity" class="tab-pane" style="display: none;">
+                                <h4>User Activity Report</h4>
+                                <p>Placeholder for user activity chart</p>
+                            </div>
+                            <div id="system-performance" class="tab-pane" style="display: none;">
+                                <h4>System Performance Report</h4>
+                                <p>Placeholder for system performance metrics</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="settings" class="content-section" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="section-title"><i class="fas fa-cog"></i> Settings</h3>
+                        <form id="settings-form">
+                            <div class="form-group">
+                                <label for="site-name">Site Name</label>
+                                <input type="text" id="site-name" name="site-name" class="form-control" value="AcadMeter">
+                            </div>
+                            <div class="form-group">
+                                <label for="admin-email">Admin Email</label>
+                                <input type="email" id="admin-email" name="admin-email" class="form-control" value="admin@acadmeter.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="user-registration">Allow User Registration</label>
+                                <select id="user-registration" name="user-registration" class="form-control">
+                                    <option value="1">Yes</option>
+                                    <option value="0">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="maintenance-mode">Maintenance Mode</label>
+                                <select id="maintenance-mode" name="maintenance-mode" class="form-control">
+                                    <option value="0">Off</option>
+                                    <option value="1">On</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                        </form>
                     </div>
                 </div>
             </section>

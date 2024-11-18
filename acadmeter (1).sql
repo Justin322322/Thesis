@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 12, 2024 at 02:56 PM
+-- Generation Time: Nov 18, 2024 at 04:26 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -196,20 +196,20 @@ INSERT INTO `instructors` (`instructor_id`, `user_id`, `employee_number`) VALUES
 
 CREATE TABLE `notifications` (
   `notification_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
   `message` varchar(255) NOT NULL,
-  `timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
-  `notification_type` varchar(50) DEFAULT 'general',
-  `user_id` int(11) DEFAULT NULL,
-  `related_quarter` int(11) DEFAULT NULL COMMENT 'Quarter of the school year related to notification'
+  `link` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_read` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `notifications`
 --
 
-INSERT INTO `notifications` (`notification_id`, `message`, `timestamp`, `notification_type`, `user_id`, `related_quarter`) VALUES
-(8, 'A new user has verified their account and is pending approval: Justin Sibonga', '2024-11-11 16:25:35', 'account_verification', NULL, NULL),
-(9, 'User ID 40 has been approved.', '2024-11-11 16:27:23', 'account_approval', 40, NULL);
+INSERT INTO `notifications` (`notification_id`, `user_id`, `message`, `link`, `created_at`, `is_read`) VALUES
+(3, 1, 'Your class schedule has been updated.', '/AcadMeter/public/views/class_management.php', '2024-11-18 14:36:41', 0),
+(4, 1, 'New feedback received from student John Doe.', '/AcadMeter/public/views/feedback.php', '2024-11-18 14:36:41', 0);
 
 -- --------------------------------------------------------
 
@@ -298,6 +298,18 @@ CREATE TABLE `students` (
   `last_name` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `students`
+--
+
+INSERT INTO `students` (`student_id`, `user_id`, `first_name`, `last_name`) VALUES
+(1, 41, 'John', 'Doe'),
+(2, 42, 'Jane', 'Smith'),
+(3, 43, 'Alice', 'Johnson'),
+(4, 50, 'John', 'Doe'),
+(5, 51, 'Jane', 'Smith'),
+(6, 52, 'Alice', 'Johnson');
+
 -- --------------------------------------------------------
 
 --
@@ -324,7 +336,7 @@ CREATE TABLE `student_risk` (
 
 CREATE TABLE `subjects` (
   `subject_id` int(11) NOT NULL,
-  `subject_name` varchar(100) DEFAULT NULL
+  `subject_name` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -332,9 +344,14 @@ CREATE TABLE `subjects` (
 --
 
 INSERT INTO `subjects` (`subject_id`, `subject_name`) VALUES
-(0, 'Math'),
-(101, 'Mathematics'),
-(102, 'Science');
+(15, 'Filipino'),
+(1, 'Mathematics'),
+(7, 'Music'),
+(9, 'Physical Education'),
+(13, 'Research'),
+(2, 'Science'),
+(6, 'Technology and Livelihood Education (TLE)'),
+(11, 'Values Education');
 
 -- --------------------------------------------------------
 
@@ -381,7 +398,13 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`user_id`, `username`, `first_name`, `last_name`, `password`, `email`, `user_type`, `status`, `created_at`, `verification_code`, `verified`, `reset_token`, `reset_token_expiry`, `dob`, `sex`, `verification_timestamp`) VALUES
 (29, 'admin', 'Admin', 'User', '$2y$10$IaGhcvGNJYoX0NjaatqsaOvoN0pXGBwb4pr5IXSa3871730PbZDmi', 'admin@example.com', 'Admin', 'approved', '2024-11-08 06:50:13', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
-(40, 'Justin', 'Justin', 'Sibonga', '$2y$10$iyYlKCTx8cX2zUDoCGfjXewc86epucZF4Q0KrmN4JKvDDmDDP530i', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-11 16:25:12', 'c963dac56f64646f582bc5f3f3b1acc7', 1, NULL, NULL, '1996-02-02', 'Male', NULL);
+(40, 'Justin', 'Justin', 'Sibonga', '$2y$10$iyYlKCTx8cX2zUDoCGfjXewc86epucZF4Q0KrmN4JKvDDmDDP530i', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-11 16:25:12', 'c963dac56f64646f582bc5f3f3b1acc7', 1, NULL, NULL, '1996-02-02', 'Male', NULL),
+(41, 'john_doe', 'John', 'Doe', '$2y$10$hashedpassword1', 'john.doe@example.com', 'Student', 'approved', '2024-11-18 11:33:07', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
+(42, 'jane_smith', 'Jane', 'Smith', '$2y$10$hashedpassword2', 'jane.smith@example.com', 'Student', 'approved', '2024-11-18 11:33:07', NULL, 1, NULL, NULL, NULL, 'Female', NULL),
+(43, 'alice_johnson', 'Alice', 'Johnson', '$2y$10$hashedpassword3', 'alice.johnson@example.com', 'Student', 'approved', '2024-11-18 11:33:07', NULL, 1, NULL, NULL, NULL, 'Female', NULL),
+(50, 'john_doe', 'John', 'Doe', '$2y$10$hashedpassword1', 'john.doe+1@example.com', 'Student', 'approved', '2024-11-18 11:34:08', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
+(51, 'jane_smith', 'Jane', 'Smith', '$2y$10$hashedpassword2', 'jane.smith+1@example.com', 'Student', 'approved', '2024-11-18 11:34:08', NULL, 1, NULL, NULL, NULL, 'Female', NULL),
+(52, 'alice_johnson', 'Alice', 'Johnson', '$2y$10$hashedpassword3', 'alice.johnson+1@example.com', 'Student', 'approved', '2024-11-18 11:34:08', NULL, 1, NULL, NULL, NULL, 'Female', NULL);
 
 -- --------------------------------------------------------
 
@@ -458,6 +481,7 @@ ALTER TABLE `feedback`
 --
 ALTER TABLE `grades`
   ADD PRIMARY KEY (`grade_id`),
+  ADD UNIQUE KEY `unique_student_subject` (`student_id`,`subject_id`),
   ADD KEY `fk_grades_student` (`student_id`),
   ADD KEY `fk_grades_subject` (`subject_id`);
 
@@ -480,7 +504,8 @@ ALTER TABLE `instructors`
 -- Indexes for table `notifications`
 --
 ALTER TABLE `notifications`
-  ADD PRIMARY KEY (`notification_id`);
+  ADD PRIMARY KEY (`notification_id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `performance_predictions`
@@ -511,6 +536,7 @@ ALTER TABLE `reports`
 --
 ALTER TABLE `sections`
   ADD PRIMARY KEY (`section_id`),
+  ADD UNIQUE KEY `unique_section` (`section_name`,`subject_id`,`instructor_id`),
   ADD KEY `fk_sections_instructor` (`instructor_id`),
   ADD KEY `sections_ibfk_2` (`subject_id`);
 
@@ -541,7 +567,8 @@ ALTER TABLE `student_risk`
 -- Indexes for table `subjects`
 --
 ALTER TABLE `subjects`
-  ADD PRIMARY KEY (`subject_id`);
+  ADD PRIMARY KEY (`subject_id`),
+  ADD UNIQUE KEY `subject_name` (`subject_name`);
 
 --
 -- Indexes for table `teacher_evaluations`
@@ -634,7 +661,7 @@ ALTER TABLE `instructors`
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `performance_predictions`
@@ -658,13 +685,25 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
-  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `students`
+--
+ALTER TABLE `students`
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `student_risk`
 --
 ALTER TABLE `student_risk`
   MODIFY `risk_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `subjects`
+--
+ALTER TABLE `subjects`
+  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `teacher_evaluations`
@@ -676,7 +715,7 @@ ALTER TABLE `teacher_evaluations`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
 -- AUTO_INCREMENT for table `user_approval_logs`
@@ -735,15 +774,6 @@ ALTER TABLE `feedback`
   ADD CONSTRAINT `fk_feedback_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `grades`
---
-ALTER TABLE `grades`
-  ADD CONSTRAINT `fk_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_grades_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `grades_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `grades_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE;
-
---
 -- Constraints for table `grading_formulas`
 --
 ALTER TABLE `grading_formulas`
@@ -754,6 +784,12 @@ ALTER TABLE `grading_formulas`
 --
 ALTER TABLE `instructors`
   ADD CONSTRAINT `instructors_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
 
 --
 -- Constraints for table `performance_predictions`
@@ -784,7 +820,6 @@ ALTER TABLE `reports`
 --
 ALTER TABLE `sections`
   ADD CONSTRAINT `fk_sections_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `sections_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE;
 
 --

@@ -1,0 +1,15 @@
+# File: C:\xampp\htdocs\AcadMeter\.htaccess
+
+# Comment out the existing rewrite rules
+# RewriteEngine On
+
+# # Redirect /api/at_risk_students to server/api/at_risk_students.php
+# RewriteRule ^api/at_risk_students$ server/api/at_risk_students.php [L,QSA]
+
+# # Redirect /api/notifications to server/api/notifications.php (if notifications are handled)
+# RewriteRule ^api/notifications$ server/api/notifications.php [L,QSA]
+
+# # Redirect all other requests to public/ directory
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.*)$ public/$1 [L,QSA]

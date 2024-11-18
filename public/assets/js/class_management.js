@@ -1,291 +1,348 @@
 // File: C:\xampp\htdocs\AcadMeter\public\assets\js\class_management.js
 
-/**
- * Function to display a Bootstrap modal with dynamic content
- * @param {string} title - The modal title
- * @param {string} message - The modal body content
- * @param {string} type - The type of message (success, danger, warning, info)
- */
-function showModal(title, message, type = 'info') {
-    // Set modal header color based on the type
-    const headerClass = {
-        'success': 'bg-success text-white',
-        'danger': 'bg-danger text-white',
-        'warning': 'bg-warning text-dark',
-        'info': 'bg-info text-white'
-    };
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Class Management JS Initialized');
 
-    $('#messageModalHeader').attr('class', 'modal-header ' + headerClass[type]);
-    $('#messageModalLabel').text(title);
-    $('#messageModalBody').html(message);
-
-    // Show the modal
-    $('#messageModal').modal('show');
-}
-
-$(document).ready(function() {
-    // Initialize tooltips
-    $('[data-toggle="tooltip"]').tooltip();
-
-    // Handle Assign Students to Section
-    $('#assignStudentsForm').on('submit', function(event) {
-        event.preventDefault();
-        const sectionId = $('#assignSectionSelect').val();
-        const students = $('#assignStudentSelect').val();
-        const csrfToken = $('input[name="csrf_token"]').val();
-
-        if (!sectionId) {
-            showModal('Warning', 'Please select a section.', 'warning');
-            return;
+    // Function to show modal messages (success, fail, warning)
+    function showModalMessage(title, message, type) {
+        const modalId = 'messageModal';
+        let modal = document.getElementById(modalId);
+        
+        if (!modal) {
+            // Create modal if it doesn't exist
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'modal fade';
+            modal.setAttribute('tabindex', '-1');
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-labelledby', 'messageModalLabel');
+            modal.setAttribute('aria-hidden', 'true');
+            
+            modal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="messageModalLabel"></h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
         }
-
-        if (!students || students.length === 0) {
-            showModal('Warning', 'Please select at least one student to assign.', 'warning');
-            return;
+        
+        const modalTitle = modal.querySelector('.modal-title');
+        const modalBody = modal.querySelector('.modal-body');
+        const modalContent = modal.querySelector('.modal-content');
+        
+        modalTitle.textContent = title;
+        modalBody.textContent = message;
+        
+        // Reset classes
+        modalContent.className = 'modal-content';
+        
+        // Add appropriate class based on type
+        if (type === 'success') {
+            modalContent.classList.add('modal-success');
+        } else if (type === 'fail' || type === 'error') {
+            modalContent.classList.add('modal-danger');
+        } else if (type === 'warning') {
+            modalContent.classList.add('modal-warning');
         }
+        
+        $(modal).modal('show');
+    }
 
-        // Disable the submit button to prevent multiple submissions
-        $('#assignStudentsForm button[type="submit"]').prop('disabled', true);
-
-        // Send AJAX request to assign students
-        $.ajax({
-            url: '/AcadMeter/server/controllers/class_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'assign_students_to_section',
-                section_id: sectionId,
-                students: students,
-                csrf_token: csrfToken
-            },
-            dataType: 'json',
-            traditional: true, // Needed when sending arrays via $.ajax
-            success: function(response) {
-                if (response.status === 'success') {
-                    showModal('Success', response.message, 'success');
-                    // Optionally, refresh the page to reflect changes
-                    location.reload();
-                } else {
-                    showModal('Error', response.message || 'Failed to assign students to section.', 'danger');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error assigning students:', error);
-                showModal('Error', 'An error occurred while assigning students.', 'danger');
-            },
-            complete: function() {
-                $('#assignStudentsForm button[type="submit"]').prop('disabled', false);
+    // Assign Student to Section
+    const assignStudentForm = document.getElementById('assignStudentForm');
+    if (assignStudentForm) {
+        assignStudentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!assignStudentForm.checkValidity()) {
+                assignStudentForm.classList.add('was-validated');
+                return;
             }
-        });
-    });
+            const formData = new FormData(assignStudentForm);
 
-    // Handle Assign Subject to Section
-    $('#assignSubjectForm').on('submit', function(event) {
-        event.preventDefault();
-        const sectionId = $('#assignSubjectSectionSelect').val();
-        const subjectId = $('#assignSubjectSelect').val();
-        const csrfToken = $('input[name="csrf_token"]').val();
-
-        if (!sectionId) {
-            showModal('Warning', 'Please select a section.', 'warning');
-            return;
-        }
-
-        if (!subjectId) {
-            showModal('Warning', 'Please select a subject to assign.', 'warning');
-            return;
-        }
-
-        $('#assignSubjectForm button[type="submit"]').prop('disabled', true);
-
-        $.ajax({
-            url: '/AcadMeter/server/controllers/class_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'assign_subject_to_section',
-                section_id: sectionId,
-                subject_id: subjectId,
-                csrf_token: csrfToken
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    showModal('Success', response.message, 'success');
-                    // Optionally, refresh the page to reflect changes
-                    location.reload();
+            fetch('/AcadMeter/server/controllers/assign_student.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showModalMessage('Success', data.message, 'success');
+                    assignStudentForm.reset();
+                    assignStudentForm.classList.remove('was-validated');
+                    // Remove the assigned student from the available_students select
+                    const assignedStudentId = formData.get('student_id');
+                    const studentSelect = document.getElementById('studentSelect');
+                    const option = studentSelect.querySelector(`option[value="${assignedStudentId}"]`);
+                    if (option) {
+                        option.remove();
+                    }
                 } else {
-                    showModal('Error', response.message || 'Failed to assign subject to section.', 'danger');
+                    showModalMessage('Error', data.message, 'error');
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error assigning subject:', error);
-                showModal('Error', 'An error occurred while assigning the subject.', 'danger');
-            },
-            complete: function() {
-                $('#assignSubjectForm button[type="submit"]').prop('disabled', false);
-            }
-        });
-    });
-
-    // Handle Add New Subject
-    $('#addSubjectForm').on('submit', function(event) {
-        event.preventDefault();
-        const subjectName = $('#newSubject').val().trim();
-        const csrfToken = $('input[name="csrf_token"]').val();
-
-        if (!subjectName) {
-            showModal('Warning', 'Please enter a subject name.', 'warning');
-            return;
-        }
-
-        $('#addSubjectForm button[type="submit"]').prop('disabled', true);
-
-        $.ajax({
-            url: '/AcadMeter/server/controllers/class_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'add_subject',
-                subject_name: subjectName,
-                csrf_token: csrfToken
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    showModal('Success', `The subject "${response.subject_name}" has been added successfully.`, 'success');
-                    // Update the subjects list
-                    $('#assignSubjectSelect').append(
-                        $('<option>', {
-                            value: response.subject_id,
-                            text: response.subject_name
-                        })
-                    );
-                    $('#manageSubjectsTable tbody').append(`
-                        <tr id="subjectRow${response.subject_id}">
-                            <td>${response.subject_id}</td>
-                            <td id="subjectName${response.subject_id}">${response.subject_name}</td>
-                            <td>
-                                <button class="btn btn-sm btn-info edit-subject" data-subject-id="${response.subject_id}" data-subject-name="${response.subject_name}">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                                <button class="btn btn-sm btn-danger delete-subject" data-subject-id="${response.subject_id}">
-                                    <i class="fas fa-trash-alt"></i> Delete
-                                </button>
-                            </td>
-                        </tr>
-                    `);
-                    // Clear the input field
-                    $('#newSubject').val('');
-                } else {
-                    showModal('Error', response.message || 'Failed to add subject.', 'danger');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error adding subject:', error);
-                showModal('Error', 'An error occurred while adding the subject.', 'danger');
-            },
-            complete: function() {
-                $('#addSubjectForm button[type="submit"]').prop('disabled', false);
-            }
-        });
-    });
-
-    // Handle Edit Subject Button Click
-    $(document).on('click', '.edit-subject', function() {
-        const subjectId = $(this).data('subject-id');
-        const subjectName = $(this).data('subject-name');
-        $('#editSubjectId').val(subjectId);
-        $('#editSubjectName').val(subjectName);
-        $('#editSubjectModal').modal('show');
-    });
-
-    // Handle Edit Subject Form Submission
-    $('#editSubjectForm').on('submit', function(event) {
-        event.preventDefault();
-        const subjectId = $('#editSubjectId').val();
-        const subjectName = $('#editSubjectName').val().trim();
-        const csrfToken = $('input[name="csrf_token"]').val();
-
-        if (!subjectName) {
-            showModal('Warning', 'Subject name cannot be empty.', 'warning');
-            return;
-        }
-
-        $('#editSubjectForm button[type="submit"]').prop('disabled', true);
-
-        $.ajax({
-            url: '/AcadMeter/server/controllers/class_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'update_subject',
-                subject_id: subjectId,
-                subject_name: subjectName,
-                csrf_token: csrfToken
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    showModal('Success', response.message, 'success');
-                    // Update the subjects list
-                    $(`#subjectName${subjectId}`).text(response.subject_name);
-                    $(`#assignSubjectSelect option[value="${subjectId}"]`).text(response.subject_name);
-                    $('#editSubjectModal').modal('hide');
-                } else {
-                    showModal('Error', response.message || 'Failed to update subject.', 'danger');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error updating subject:', error);
-                showModal('Error', 'An error occurred while updating the subject.', 'danger');
-            },
-            complete: function() {
-                $('#editSubjectForm button[type="submit"]').prop('disabled', false);
-            }
-        });
-    });
-
-    // Handle Delete Subject Button Click
-    $(document).on('click', '.delete-subject', function() {
-        const subjectId = $(this).data('subject-id');
-        const subjectName = $(`#subjectName${subjectId}`).text();
-        $('#deleteSubjectId').val(subjectId);
-        $('#deleteSubjectName').text(subjectName);
-        $('#deleteSubjectModal').modal('show');
-    });
-
-    // Handle Delete Subject Form Submission
-    $('#deleteSubjectForm').on('submit', function(event) {
-        event.preventDefault();
-        const subjectId = $('#deleteSubjectId').val();
-        const csrfToken = $('input[name="csrf_token"]').val();
-
-        // Send AJAX request to delete the subject
-        $.ajax({
-            url: '/AcadMeter/server/controllers/class_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'delete_subject',
-                subject_id: subjectId,
-                csrf_token: csrfToken
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    // Display success pop-up
-                    showModal('Success', response.message, 'success');
-                    // Update UI accordingly
-                    $('#subjectRow' + subjectId).remove();
-                    // Optionally, remove the subject from the assign subject select dropdown
-                    $(`#assignSubjectSelect option[value="${subjectId}"]`).remove();
-                    // Hide the delete modal
-                    $('#deleteSubjectModal').modal('hide');
-                } else {
-                    // Display error pop-up
-                    showModal('Error', response.message, 'danger');
-                }
-            },
-            error: function(xhr, status, error) {
+            })
+            .catch(error => {
                 console.error('Error:', error);
-                showModal('Error', 'An unexpected error occurred.', 'danger');
-            }
+                showModalMessage('Error', 'An unexpected error occurred.', 'error');
+            });
         });
+    }
+
+    // Assign Subject to Section
+    const assignSubjectForm = document.getElementById('assignSubjectForm');
+    if (assignSubjectForm) {
+        assignSubjectForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!assignSubjectForm.checkValidity()) {
+                assignSubjectForm.classList.add('was-validated');
+                return;
+            }
+            const formData = new FormData(assignSubjectForm);
+
+            fetch('/AcadMeter/server/controllers/assign_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showModalMessage('Success', data.message, 'success');
+                    assignSubjectForm.reset();
+                    assignSubjectForm.classList.remove('was-validated');
+                    // Optionally, update the sections or subjects list
+                } else {
+                    showModalMessage('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showModalMessage('Error', 'An unexpected error occurred.', 'error');
+            });
+        });
+    }
+
+    // Add New Subject
+    const addSubjectForm = document.getElementById('addSubjectForm');
+    if (addSubjectForm) {
+        addSubjectForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!addSubjectForm.checkValidity()) {
+                addSubjectForm.classList.add('was-validated');
+                return;
+            }
+            const formData = new FormData(addSubjectForm);
+
+            fetch('/AcadMeter/server/controllers/add_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addSubjectForm.reset();
+                    addSubjectForm.classList.remove('was-validated');
+                    // Append the new subject to the Manage Subjects table
+                    appendSubjectToTable(data.subject_id, data.subject_name);
+                    // Add the new subject to the subject selects
+                    addNewOptionToSelect('subjectSelect', data.subject_id, data.subject_name);
+                    addNewOptionToSelect('sectionSubjectSelect', data.subject_id, data.subject_name);
+                    showModalMessage('Success', data.message, 'success');
+                } else {
+                    showModalMessage('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showModalMessage('Error', 'An unexpected error occurred.', 'error');
+            });
+        });
+    }
+
+    // Edit Subject Modal
+    const editSubjectModal = $('#editSubjectModal');
+    const editSubjectFormModal = document.getElementById('editSubjectFormModal');
+
+    // Function to populate edit subject modal
+    function populateEditSubjectModal(subjectId, subjectName) {
+        document.getElementById('editSubjectId').value = subjectId;
+        document.getElementById('editSubjectName').value = subjectName;
+        editSubjectFormModal.classList.remove('was-validated');
+        editSubjectModal.modal('show');
+    }
+
+    // Event delegation for edit subject buttons
+    document.querySelector('#manageSubjectsTable').addEventListener('click', function(e) {
+        if (e.target.classList.contains('edit-subject') || e.target.closest('.edit-subject')) {
+            const button = e.target.classList.contains('edit-subject') ? e.target : e.target.closest('.edit-subject');
+            const subjectId = button.getAttribute('data-subject-id');
+            const subjectName = button.getAttribute('data-subject-name');
+            populateEditSubjectModal(subjectId, subjectName);
+        }
     });
+
+    if (editSubjectFormModal) {
+        editSubjectFormModal.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!editSubjectFormModal.checkValidity()) {
+                editSubjectFormModal.classList.add('was-validated');
+                return;
+            }
+            const formData = new FormData(editSubjectFormModal);
+
+            fetch('/AcadMeter/server/controllers/edit_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update the subject row in the table
+                    const subjectRow = document.getElementById(`subjectRow${data.subject_id}`);
+                    if (subjectRow) {
+                        const subjectNameCell = document.getElementById(`subjectName${data.subject_id}`);
+                        if (subjectNameCell) {
+                            subjectNameCell.textContent = data.subject_name;
+                        }
+                        // Update data attributes for edit and delete buttons
+                        const editButton = subjectRow.querySelector('.edit-subject');
+                        const deleteButton = subjectRow.querySelector('.delete-subject');
+                        if (editButton) editButton.setAttribute('data-subject-name', data.subject_name);
+                        if (deleteButton) deleteButton.setAttribute('data-subject-name', data.subject_name);
+                    }
+                    editSubjectModal.modal('hide');
+                    showModalMessage('Success', data.message, 'success');
+                } else {
+                    showModalMessage('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showModalMessage('Error', 'An unexpected error occurred.', 'error');
+            });
+        });
+    }
+
+    // Delete Subject Modal
+    const deleteSubjectModal = $('#deleteSubjectModal');
+    const deleteSubjectFormModal = document.getElementById('deleteSubjectFormModal');
+
+    // Event delegation for delete subject buttons
+    document.querySelector('#manageSubjectsTable').addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-subject') || e.target.closest('.delete-subject')) {
+            const button = e.target.classList.contains('delete-subject') ? e.target : e.target.closest('.delete-subject');
+            const subjectId = button.getAttribute('data-subject-id');
+            const subjectName = button.getAttribute('data-subject-name');
+            
+            document.getElementById('deleteSubjectId').value = subjectId;
+            document.getElementById('deleteSubjectName').textContent = subjectName;
+            deleteSubjectFormModal.classList.remove('was-validated');
+            deleteSubjectModal.modal('show');
+        }
+    });
+
+    if (deleteSubjectFormModal) {
+        deleteSubjectFormModal.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!deleteSubjectFormModal.checkValidity()) {
+                deleteSubjectFormModal.classList.add('was-validated');
+                return;
+            }
+            const formData = new FormData(deleteSubjectFormModal);
+            const subjectId = formData.get('subject_id');
+
+            // Remove the subject row from the table immediately
+            const subjectRow = document.getElementById(`subjectRow${subjectId}`);
+            if (subjectRow) {
+                subjectRow.remove();
+            }
+
+            // Remove the subject from the select elements
+            removeOptionFromSelect('subjectSelect', subjectId);
+            removeOptionFromSelect('sectionSubjectSelect', subjectId);
+
+            // Close the modal
+            deleteSubjectModal.modal('hide');
+
+            // Send the delete request to the server
+            fetch('/AcadMeter/server/controllers/delete_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showModalMessage('Success', data.message, 'success');
+                } else {
+                    showModalMessage('Error', data.message, 'error');
+                    // If deletion failed on the server, revert the UI changes
+                    appendSubjectToTable(subjectId, document.getElementById('deleteSubjectName').textContent);
+                    addNewOptionToSelect('subjectSelect', subjectId, document.getElementById('deleteSubjectName').textContent);
+                    addNewOptionToSelect('sectionSubjectSelect', subjectId, document.getElementById('deleteSubjectName').textContent);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showModalMessage('Error', 'An unexpected error occurred.', 'error');
+                // If there was an error, revert the UI changes
+                appendSubjectToTable(subjectId, document.getElementById('deleteSubjectName').textContent);
+                addNewOptionToSelect('subjectSelect', subjectId, document.getElementById('deleteSubjectName').textContent);
+                addNewOptionToSelect('sectionSubjectSelect', subjectId, document.getElementById('deleteSubjectName').textContent);
+            });
+        });
+    }
+
+    // Function to append a new subject to the table
+    function appendSubjectToTable(subjectId, subjectName) {
+        const tbody = document.querySelector('#manageSubjectsTable tbody');
+        const row = document.createElement('tr');
+        row.id = `subjectRow${subjectId}`;
+        
+        row.innerHTML = `
+            <td>${subjectId}</td>
+            <td id="subjectName${subjectId}">${subjectName}</td>
+            <td class="text-center">
+                <button class="btn btn-info btn-sm edit-subject me-2" data-subject-id="${subjectId}" data-subject-name="${subjectName}">
+                    <i class="fas fa-edit"></i> <span>Edit</span>
+                </button>
+                <button class="btn btn-danger btn-sm delete-subject" data-subject-id="${subjectId}" data-subject-name="${subjectName}">
+                    <i class="fas fa-trash-alt"></i> <span>Delete</span>
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    }
+
+    // Function to add a new option to select elements
+    function addNewOptionToSelect(selectId, value, text) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = text;
+            select.appendChild(option);
+        }
+    }
+
+    // Function to remove an option from select elements
+    function removeOptionFromSelect(selectId, value) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            const option = select.querySelector(`option[value="${value}"]`);
+            if (option) {
+                option.remove();
+            }
+        }
+    }
 });

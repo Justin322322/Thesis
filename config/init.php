@@ -1,10 +1,14 @@
 <?php
-// C:\xampp\htdocs\AcadMeter\config\init.php
-
-// Start the session only if it hasn't been started yet
-if (session_status() === PHP_SESSION_NONE) {
+// Start the session
+if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Optionally, set a custom session name or other session configurations here
+// Set default timezone
+date_default_timezone_set('UTC');
+
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 ?>

@@ -1,51 +1,46 @@
-/* C:\xampp\htdocs\AcadMeter\public\assets\css\class_management.css */
+/* File: C:\xampp\htdocs\AcadMeter\public\assets\css\class_management.css */
 
-/* Custom styles for Class Management */
+/* Specific styles for Class Management page */
 
-.card-header h4, .card-header h5 {
-    margin: 0;
+/* Example: Style for Assigning Students Form */
+#assignStudentsForm {
+    margin-bottom: 2rem;
 }
 
-.search-input {
-    margin-bottom: 10px;
+#assignStudentsForm .form-group label {
+    font-weight: 600;
 }
 
-/* Tooltip custom width */
-.tooltip-inner {
-    max-width: 200px;
-}
-
-/* Fixed height with scroll for multi-select */
-.select-multiple {
-    height: 200px;
-    overflow-y: scroll;
-}
-
-/* Style for accordion buttons */
-.accordion .card-header button {
-    text-align: left;
-    width: 100%;
-    color: #333;
-    text-decoration: none;
-    background: none;
+#assignStudentsForm .btn-primary {
+    background-color: var(--primary-color);
     border: none;
-    padding: 0;
-    font-size: 1.1rem;
 }
 
-.accordion .card-header button:focus {
-    outline: none;
+#assignStudentsForm .btn-primary:hover {
+    background-color: var(--secondary-color);
 }
 
-.accordion .card-header button .fas {
-    margin-right: 10px;
-    transition: transform 0.2s;
+/* Example: Style for Manage Subjects Table */
+#manageSubjectsTable th, #manageSubjectsTable td {
+    text-align: center;
 }
 
-.accordion .card-header button.collapsed .fas {
-    transform: rotate(-90deg);
+#manageSubjectsTable .btn-info, #manageSubjectsTable .btn-danger {
+    margin: 0 5px;
 }
 
-.accordion .card-header button:not(.collapsed) .fas {
-    transform: rotate(0deg);
+/* Example: Style for Add Subject Form */
+#addSubjectForm .form-group label {
+    font-weight: 600;
 }
+
+#addSubjectForm .btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+}
+
+#addSubjectForm .btn-primary:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Additional specific styles can be added here */

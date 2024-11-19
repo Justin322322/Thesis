@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // File: C:\xampp\htdocs\AcadMeter\public\teacher_dashboard.php
 
 // Define a constant to allow access to controller

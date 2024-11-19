@@ -1,16 +1,16 @@
 <?php
-// File: C:\xampp\htdocs\AcadMeter\config\db_connection.php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "acadmeter";
 
-$db_host = 'localhost';
-$db_user = 'root';
-$db_pass = '';
-$db_name = 'acadmeter';
-
-// Create connection
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+try {
+    $conn = new mysqli($servername, $username, $password, $dbname);
+    if ($conn->connect_error) {
+        throw new Exception("Connection failed: " . $conn->connect_error);
+    }
+} catch (Exception $e) {
+    error_log('Database connection error: ' . $e->getMessage());
+    die("Database connection failed. Please check the server logs for more information.");
 }
 ?>

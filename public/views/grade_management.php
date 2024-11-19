@@ -13,102 +13,124 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
 }
 
 require_once __DIR__ . '/../../config/db_connection.php';
+require_once __DIR__ . '/../../server/controllers/grade_management_controller.php';
 
-// Fetch instructor_id for the current user
-$user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT instructor_id FROM instructors WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$instructorData = $result->fetch_assoc();
-$instructor_id = isset($instructorData['instructor_id']) ? $instructorData['instructor_id'] : 0;
-$stmt->close();
+$gradeManagementController = new GradeManagementController($conn);
 
-// Fetch subjects for the instructor (assuming each section is tied to a subject)
-$stmt = $conn->prepare("SELECT DISTINCT su.subject_id, su.subject_name 
-                        FROM sections s 
-                        JOIN subjects su ON s.subject_id = su.subject_id 
-                        WHERE s.instructor_id = ?");
-$stmt->bind_param("i", $instructor_id);
-$stmt->execute();
-$subjects_result = $stmt->get_result();
-$subjects = $subjects_result->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
-
-// Fetch sections for the instructor
-$stmt = $conn->prepare("SELECT s.section_id, s.section_name, su.subject_name, su.subject_id
-                        FROM sections s 
-                        JOIN subjects su ON s.subject_id = su.subject_id 
-                        WHERE s.instructor_id = ?");
-$stmt->bind_param("i", $instructor_id);
-$stmt->execute();
-$sections_result = $stmt->get_result();
-$sections = $sections_result->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+$instructor_id = $gradeManagementController->getInstructorId($_SESSION['user_id']);
 
 $quarters = ['1st', '2nd', '3rd', '4th'];
 
 $components = [
-    'written_works' => ['name' => 'Written Works', 'weight' => 30, 'initial_items' => 2],
-    'performance_tasks' => ['name' => 'Performance Tasks', 'weight' => 50, 'initial_items' => 2],
-    'quarterly_assessment' => ['name' => 'Quarterly Assessment', 'weight' => 20, 'items' => 1],
+    ['key' => 'written_works', 'name' => 'Written Works', 'weight' => 30],
+    ['key' => 'performance_tasks', 'name' => 'Performance Tasks', 'weight' => 50],
+    ['key' => 'quarterly_assessment', 'name' => 'Quarterly Assessment', 'weight' => 20],
 ];
 
-// Generate CSRF token
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+$subcategories = [
+    'written_works' => [
+        ['name' => 'Quizzes', 'description' => 'Short tests to assess understanding of topics.'],
+        ['name' => 'Essays', 'description' => 'Longer written tasks evaluating depth of knowledge and argumentation.'],
+        ['name' => 'Homework', 'description' => 'Tasks completed outside class to reinforce learning.'],
+    ],
+    'performance_tasks' => [
+        ['name' => 'Projects', 'description' => 'Group or individual projects involving creativity and research.'],
+        ['name' => 'Presentations', 'description' => 'Oral presentations demonstrating understanding.'],
+        ['name' => 'Lab Work', 'description' => 'Practical experiments and reports.'],
+    ],
+    'quarterly_assessment' => [
+        ['name' => 'Quarterly Exam', 'description' => 'Comprehensive test summarizing student performance.'],
+    ]
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grade Management</title>
-    <!-- Include necessary CSS and JS here -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Include Font Awesome for icons if not already included -->
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    <!-- Link to your external JavaScript file -->
-    <script src="/AcadMeter/public/assets/js/grade_management.js" defer></script>
-    <!-- Include your CSS files here -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="/AcadMeter/public/assets/css/styles.css">
-    <!-- Include Bootstrap CSS if needed for modal (optional, as user requested no Bootstrap additions) -->
-    <!-- If you choose not to use Bootstrap for modals, you can create a custom modal using CSS and JS -->
     <style>
-        /* Simple modal styles */
-        .modal {
-            display: none; 
-            position: fixed; 
-            z-index: 1000; 
-            left: 0;
-            top: 0;
-            width: 100%; 
-            height: 100%; 
-            overflow: auto; 
-            background-color: rgba(0,0,0,0.4); 
+        .tab-content {
+            display: none;
         }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 10% auto; 
-            padding: 20px;
-            border: 1px solid #888;
-            width: 50%; 
-            border-radius: 5px;
+        .tab-content.active {
+            display: block;
         }
-
-        .close-modal {
-            color: #aaa;
-            float: right;
-            font-size: 24px;
+        .subcategory-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .subcategory-row input {
+            margin-right: 5px;
+        }
+        .grade-input, .subcategory-score {
+            width: 60px !important;
+            text-align: center;
+            padding: 4px !important;
+            height: 30px !important;
+        }
+        .subcategory-name {
+            flex-grow: 1;
+            margin-right: 8px;
+            font-size: 14px;
+            cursor: help;
+        }
+        .component-total {
             font-weight: bold;
-            cursor: pointer;
+            color: #495057;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            text-align: center;
         }
-
-        .close-modal:hover,
-        .close-modal:focus {
-            color: black;
-            text-decoration: none;
+        .subcategories {
+            margin-top: 8px;
+        }
+        .initial-grade, .quarterly-grade, .remarks {
+            font-weight: bold;
+        }
+        .component-header {
+            font-weight: bold;
+            color: #495057;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .grade-cell {
+            min-width: 200px;
+            padding: 8px !important;
+        }
+        .student-name {
+            font-weight: 500;
+            color: #495057;
+        }
+        .failed-grade {
+            color: #dc3545;
+        }
+        .passed-grade {
+            color: #28a745;
+        }
+        .add-subcategory-btn {
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            font-size: 16px;
+            border-radius: 50%;
+        }
+        .component-description {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 4px;
         }
     </style>
 </head>
@@ -119,29 +141,19 @@ if (empty($_SESSION['csrf_token'])) {
         <div class="card shadow-sm">
             <div class="card-body">
                 <form id="gradeForm" method="post" action="">
-                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                     <div class="form-row">
                         <div class="form-group col-md-6">
                             <label for="section">Select Section:</label>
                             <select id="section" name="section" class="form-control" required>
                                 <option value="">-- Select Section --</option>
-                                <?php foreach ($sections as $section): ?>
-                                    <option value="<?php echo htmlspecialchars($section['section_id']); ?>" data-subject="<?php echo htmlspecialchars($section['subject_name']); ?>">
-                                        <?php echo htmlspecialchars($section['section_name']); ?> - <?php echo htmlspecialchars($section['subject_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="form-group col-md-6">
-                            <label for="subject">Subject:</label>
-                            <input type="text" id="subject" name="subject" class="form-control" readonly>
+                            <label for="subject">Select Subject:</label>
+                            <select id="subject" name="subject" class="form-control" required disabled>
+                                <option value="">-- Select Subject --</option>
+                            </select>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <button type="button" id="openCreateSectionModal" class="btn btn-success">
-                            <i class="fas fa-plus"></i> Create New Section
-                        </button>
                     </div>
 
                     <div class="quarter-tabs mb-3">
@@ -150,24 +162,68 @@ if (empty($_SESSION['csrf_token'])) {
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="table-responsive">
-                        <table id="gradeTable" class="table table-striped table-hover">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th>Student Name</th>
-                                    <?php foreach ($components as $key => $component): ?>
-                                        <th>
-                                            <?php echo $component['name']; ?> (<?php echo $component['weight']; ?>%)
-                                        </th>
-                                    <?php endforeach; ?>
-                                    <th>Initial Grade</th>
-                                    <th>Quarterly Grade</th>
-                                </tr>
-                            </thead>
-                            <tbody id="gradeTableBody">
-                                <!-- Student rows will be dynamically added here via JavaScript -->
-                            </tbody>
-                        </table>
+                    <div class="grade-tabs mb-3">
+                        <button type="button" class="btn btn-outline-secondary grade-tab active" data-tab="summary">Summary</button>
+                        <button type="button" class="btn btn-outline-secondary grade-tab" data-tab="detailed">Detailed Scoring</button>
+                    </div>
+
+                    <div id="summary-tab" class="tab-content active">
+                        <div class="table-responsive">
+                            <table id="gradeTable" class="table table-striped table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <?php foreach ($components as $component): ?>
+                                            <th>
+                                                <div class="component-header">
+                                                    <?php echo $component['name']; ?> (<?php echo $component['weight']; ?>%)
+                                                </div>
+                                                <div class="component-description">
+                                                    Total score for all <?php echo strtolower($component['name']); ?>
+                                                </div>
+                                            </th>
+                                        <?php endforeach; ?>
+                                        <th>Initial Grade</th>
+                                        <th>Quarterly Grade</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gradeTableBody">
+                                    <!-- Student rows will be dynamically added here via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="detailed-tab" class="tab-content">
+                        <div class="table-responsive">
+                            <table id="detailedGradeTable" class="table table-striped table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <?php foreach ($components as $component): ?>
+                                            <th class="grade-cell">
+                                                <div class="component-header">
+                                                    <?php echo $component['name']; ?> (<?php echo $component['weight']; ?>%)
+                                                    <button type="button" class="btn btn-sm btn-outline-primary add-subcategory-btn" data-component="<?php echo $component['key']; ?>">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="component-description">
+                                                    Average of all <?php echo strtolower($component['name']); ?> activities
+                                                </div>
+                                            </th>
+                                        <?php endforeach; ?>
+                                        <th>Initial Grade</th>
+                                        <th>Quarterly Grade</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailedGradeTableBody">
+                                    <!-- Student rows with detailed scoring will be dynamically added here via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary save-grades mt-3">
@@ -178,146 +234,51 @@ if (empty($_SESSION['csrf_token'])) {
         </div>
     </div>
 
-    <!-- Modal for Creating New Sections -->
-    <div id="createSectionModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Create New Section</h3>
-            <form id="createSectionForm">
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                <div class="form-group">
-                    <label for="new_section_subject">Select Subject:</label>
-                    <select id="new_section_subject" name="subject_id" class="form-control" required>
-                        <option value="">-- Select Subject --</option>
-                        <?php foreach ($subjects as $subject): ?>
-                            <option value="<?php echo htmlspecialchars($subject['subject_id']); ?>">
-                                <?php echo htmlspecialchars($subject['subject_name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+    <!-- Subcategory Modal -->
+    <div class="modal fade" id="subcategoryModal" tabindex="-1" role="dialog" aria-labelledby="subcategoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="subcategoryModalLabel">Add Subcategory</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label for="new_section_number">Section Number:</label>
-                    <select id="new_section_number" name="section_number" class="form-control" required>
-                        <option value="">-- Select Section Number --</option>
-                        <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <option value="<?php echo $i; ?>">Section <?php echo $i; ?></option>
-                        <?php endfor; ?>
-                    </select>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="componentSelect">Component</label>
+                        <select id="componentSelect" class="form-control" disabled>
+                            <?php foreach ($components as $component): ?>
+                                <option value="<?php echo $component['key']; ?>"><?php echo $component['name']; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="subcategorySelect">Subcategory</label>
+                        <select id="subcategorySelect" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="subcategoryDescription">Description</label>
+                        <textarea id="subcategoryDescription" class="form-control" rows="3" readonly></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="new_section_name">Section Name:</label>
-                    <input type="text" id="new_section_name" name="section_name" class="form-control" readonly>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveSubcategory">Save Subcategory</button>
                 </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Create Section
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Existing JavaScript code for grade management...
-
-        // Modal functionality
-        const modal = document.getElementById('createSectionModal');
-        const openModalBtn = document.getElementById('openCreateSectionModal');
-        const closeModalSpan = document.querySelector('.close-modal');
-        const newSectionNumberSelect = document.getElementById('new_section_number');
-        const newSectionNameInput = document.getElementById('new_section_name');
-
-        // Open modal
-        openModalBtn.addEventListener('click', () => {
-            modal.style.display = 'block';
-        });
-
-        // Close modal
-        closeModalSpan.addEventListener('click', () => {
-            modal.style.display = 'none';
-            resetCreateSectionForm();
-        });
-
-        // Close modal when clicking outside the modal content
-        window.addEventListener('click', (event) => {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-                resetCreateSectionForm();
-            }
-        });
-
-        // Update section name based on selected number
-        newSectionNumberSelect.addEventListener('change', function() {
-            const number = this.value;
-            if (number) {
-                newSectionNameInput.value = 'Section ' + number;
-            } else {
-                newSectionNameInput.value = '';
-            }
-        });
-
-        // Handle Create Section Form Submission
-        const createSectionForm = document.getElementById('createSectionForm');
-        createSectionForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(this);
-            formData.append('action', 'create_section');
-
-            fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert('Section created successfully!');
-                        modal.style.display = 'none';
-                        resetCreateSectionForm();
-                        // Refresh sections dropdown
-                        refreshSectionsDropdown();
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => console.error('Error creating section:', error));
-        });
-
-        // Function to reset the create section form
-        function resetCreateSectionForm() {
-            createSectionForm.reset();
-            newSectionNameInput.value = '';
-        }
-
-        // Function to refresh the sections dropdown after creating a new section
-        function refreshSectionsDropdown() {
-            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-
-            fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ action: 'fetch_sections', csrf_token: csrfToken, instructor_id: <?php echo json_encode($instructor_id); ?> })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const sectionSelect = document.getElementById('section');
-                        sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
-                        data.sections.forEach(section => {
-                            const option = document.createElement('option');
-                            option.value = section.section_id;
-                            option.textContent = `${section.section_name} - ${section.subject_name}`;
-                            option.setAttribute('data-subject', section.subject_name);
-                            sectionSelect.appendChild(option);
-                        });
-                    } else {
-                        alert('Failed to refresh sections: ' + data.message);
-                    }
-                })
-                .catch(error => console.error('Error fetching sections:', error));
-        }
-
-    });
+        // Pass PHP variables to JavaScript
+        var instructorId = <?php echo json_encode($instructor_id); ?>;
+        var components = <?php echo json_encode($components); ?>;
+        var subcategories = <?php echo json_encode($subcategories); ?>;
     </script>
+    <script src="/AcadMeter/public/assets/js/grade_management.js"></script>
 </body>
 </html>

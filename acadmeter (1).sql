@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 19, 2024 at 05:05 AM
+-- Generation Time: Nov 19, 2024 at 08:15 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -121,6 +121,22 @@ CREATE TABLE `deleted_users_history` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `detailed_grades`
+--
+
+CREATE TABLE `detailed_grades` (
+  `id` int(11) NOT NULL,
+  `student_id` int(11) DEFAULT NULL,
+  `subject_id` int(11) DEFAULT NULL,
+  `quarter` tinyint(4) DEFAULT NULL,
+  `component` varchar(50) DEFAULT NULL,
+  `subcategory_name` varchar(100) DEFAULT NULL,
+  `subcategory_score` decimal(5,2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `feedback`
 --
 
@@ -143,15 +159,18 @@ CREATE TABLE `grades` (
   `grade_id` int(11) NOT NULL,
   `student_id` int(11) NOT NULL,
   `subject_id` int(11) NOT NULL,
-  `initial_grade` decimal(5,2) DEFAULT NULL,
-  `quarterly_grade` decimal(5,2) DEFAULT NULL,
-  `quiz_average` decimal(5,2) DEFAULT NULL,
-  `assignment_average` decimal(5,2) DEFAULT NULL,
-  `extracurricular_average` decimal(5,2) DEFAULT NULL,
-  `midterm_exam` decimal(5,2) DEFAULT NULL,
-  `final_exam` decimal(5,2) DEFAULT NULL,
-  `total_grade` decimal(5,2) GENERATED ALWAYS AS (`quiz_average` * 0.3 + `assignment_average` * 0.2 + `midterm_exam` * 0.2 + `final_exam` * 0.3) STORED
+  `quarter` tinyint(4) NOT NULL,
+  `component` varchar(50) NOT NULL,
+  `grade` decimal(5,2) NOT NULL,
+  `subcategories` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`subcategories`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `grades`
+--
+
+INSERT INTO `grades` (`grade_id`, `student_id`, `subject_id`, `quarter`, `component`, `grade`, `subcategories`) VALUES
+(1, 1, 56, 0, '', 0.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -269,11 +288,19 @@ CREATE TABLE `reports` (
 
 CREATE TABLE `sections` (
   `section_id` int(11) NOT NULL,
-  `section_name` varchar(50) NOT NULL,
-  `subject_id` int(11) NOT NULL,
-  `instructor_id` int(11) NOT NULL,
-  `school_year` varchar(9) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `section_name` varchar(255) NOT NULL,
+  `subject_id` int(11) DEFAULT NULL,
+  `instructor_id` int(11) DEFAULT NULL,
+  `school_year` varchar(9) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `sections`
+--
+
+INSERT INTO `sections` (`section_id`, `section_name`, `subject_id`, `instructor_id`, `school_year`) VALUES
+(8, 'Mango', NULL, 2, '2024-2025'),
+(9, 'Kalabasa', NULL, 2, '2024-2025');
 
 -- --------------------------------------------------------
 
@@ -286,6 +313,14 @@ CREATE TABLE `section_students` (
   `student_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `section_students`
+--
+
+INSERT INTO `section_students` (`section_id`, `student_id`) VALUES
+(8, 1),
+(8, 2);
+
 -- --------------------------------------------------------
 
 --
@@ -296,6 +331,14 @@ CREATE TABLE `section_subjects` (
   `section_id` int(11) NOT NULL,
   `subject_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `section_subjects`
+--
+
+INSERT INTO `section_subjects` (`section_id`, `subject_id`) VALUES
+(8, 56),
+(8, 66);
 
 -- --------------------------------------------------------
 
@@ -356,7 +399,8 @@ CREATE TABLE `subjects` (
 --
 
 INSERT INTO `subjects` (`subject_id`, `subject_name`) VALUES
-(54, 'Mathematics'),
+(56, 'Filipino'),
+(66, 'Math'),
 (44, 'Science');
 
 -- --------------------------------------------------------
@@ -475,6 +519,14 @@ ALTER TABLE `deleted_users_history`
   ADD KEY `user_id` (`user_id`);
 
 --
+-- Indexes for table `detailed_grades`
+--
+ALTER TABLE `detailed_grades`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `student_id` (`student_id`,`subject_id`,`quarter`,`component`,`subcategory_name`),
+  ADD KEY `subject_id` (`subject_id`);
+
+--
 -- Indexes for table `feedback`
 --
 ALTER TABLE `feedback`
@@ -542,9 +594,8 @@ ALTER TABLE `reports`
 --
 ALTER TABLE `sections`
   ADD PRIMARY KEY (`section_id`),
-  ADD UNIQUE KEY `unique_section` (`section_name`,`subject_id`,`instructor_id`),
-  ADD KEY `fk_sections_instructor` (`instructor_id`),
-  ADD KEY `sections_ibfk_2` (`subject_id`);
+  ADD KEY `subject_id` (`subject_id`),
+  ADD KEY `instructor_id` (`instructor_id`);
 
 --
 -- Indexes for table `section_students`
@@ -647,6 +698,12 @@ ALTER TABLE `deleted_users_history`
   MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `detailed_grades`
+--
+ALTER TABLE `detailed_grades`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
@@ -656,7 +713,7 @@ ALTER TABLE `feedback`
 -- AUTO_INCREMENT for table `grades`
 --
 ALTER TABLE `grades`
-  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `grading_formulas`
@@ -698,7 +755,7 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
-  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `students`
@@ -716,7 +773,7 @@ ALTER TABLE `student_risk`
 -- AUTO_INCREMENT for table `subjects`
 --
 ALTER TABLE `subjects`
-  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
+  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `teacher_evaluations`
@@ -728,7 +785,7 @@ ALTER TABLE `teacher_evaluations`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54;
 
 --
 -- AUTO_INCREMENT for table `user_approval_logs`
@@ -776,6 +833,13 @@ ALTER TABLE `class_rankings`
 --
 ALTER TABLE `deleted_users_history`
   ADD CONSTRAINT `deleted_users_history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `detailed_grades`
+--
+ALTER TABLE `detailed_grades`
+  ADD CONSTRAINT `detailed_grades_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`),
+  ADD CONSTRAINT `detailed_grades_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`);
 
 --
 -- Constraints for table `feedback`
@@ -832,8 +896,8 @@ ALTER TABLE `reports`
 -- Constraints for table `sections`
 --
 ALTER TABLE `sections`
-  ADD CONSTRAINT `fk_sections_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `sections_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`),
+  ADD CONSTRAINT `sections_ibfk_2` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`);
 
 --
 -- Constraints for table `section_students`

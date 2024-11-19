@@ -2,25 +2,63 @@
 
 /* Specific styles for Class Management page */
 
-/* Example: Style for Assigning Students Form */
-#assignStudentsForm {
-    margin-bottom: 2rem;
-}
-
-#assignStudentsForm .form-group label {
+/* Add New Section Form */
+#addSectionForm .form-group label {
     font-weight: 600;
 }
 
-#assignStudentsForm .btn-primary {
+#addSectionForm .btn-success {
     background-color: var(--primary-color);
     border: none;
 }
 
-#assignStudentsForm .btn-primary:hover {
+#addSectionForm .btn-success:hover {
     background-color: var(--secondary-color);
 }
 
-/* Example: Style for Manage Subjects Table */
+/* Assign Student Form */
+#assignStudentForm .form-group label {
+    font-weight: 600;
+}
+
+#assignStudentForm .btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+}
+
+#assignStudentForm .btn-primary:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Assign Subject Form */
+#assignSubjectForm .form-group label {
+    font-weight: 600;
+}
+
+#assignSubjectForm .btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+}
+
+#assignSubjectForm .btn-primary:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Add Subject Form */
+#addSubjectForm .form-group label {
+    font-weight: 600;
+}
+
+#addSubjectForm .btn-success {
+    background-color: var(--primary-color);
+    border: none;
+}
+
+#addSubjectForm .btn-success:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Manage Subjects Table */
 #manageSubjectsTable th, #manageSubjectsTable td {
     text-align: center;
 }
@@ -29,18 +67,31 @@
     margin: 0 5px;
 }
 
-/* Example: Style for Add Subject Form */
-#addSubjectForm .form-group label {
-    font-weight: 600;
+/* Class Roster */
+.section-roster h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
 }
 
-#addSubjectForm .btn-primary {
-    background-color: var(--primary-color);
-    border: none;
+.section-roster h5 {
+    color: var(--secondary-color);
+    margin-bottom: 0.5rem;
 }
 
-#addSubjectForm .btn-primary:hover {
-    background-color: var(--secondary-color);
+.section-roster .list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* Additional specific styles can be added here */
+.section-roster .btn-danger {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .section-roster .row > div {
+        margin-bottom: 1rem;
+    }
+}

@@ -36,19 +36,13 @@ if (!file_exists($view_file)) {
     <!-- Include CSS files -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Include FontAwesome CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-pjw5h4V9e+1ExmYtO0KMIxRqLZ5M6NwMv6grU0HgRmg6UyDeHTIE5iTk3QxVc5CQuVvYSdpJ3b+/tcSZeN3R/A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <!-- Include Custom CSS -->
     <link rel="stylesheet" href="/AcadMeter/public/assets/css/styles.css">
     <link rel="stylesheet" href="/AcadMeter/public/assets/css/teacher_dashboard.css">
     <link rel="stylesheet" href="/AcadMeter/public/assets/css/class_management.css">
-    <style>
-        /* Optional: Ensure dropdown menus are visible */
-        .dropdown-menu {
-            z-index: 1000;
-        }
-    </style>
 </head>
 <body>
     <!-- Toast container for notifications -->
@@ -75,7 +69,7 @@ if (!file_exists($view_file)) {
                 foreach ($nav_links as $key => $link) {
                     $active_class = ($view === $key) ? 'active' : '';
                     echo "<a href=\"?view={$key}\" class=\"nav-link {$active_class}\">
-                            <i class=\"fas fa-{$link['icon']}\"></i>
+                            <i class=\"fas fa-{$link['icon']} fa-fw mr-2\"></i>
                             <span>{$link['label']}</span>
                           </a>";
                 }
@@ -88,7 +82,10 @@ if (!file_exists($view_file)) {
                 <button id="sidebar-toggle" class="btn btn-outline-secondary" aria-label="Toggle Sidebar">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h2 id="section-title"><?php echo ucfirst(str_replace('_', ' ', $view)); ?></h2>
+                <h2 id="section-title">
+                    <i class="fas fa-<?php echo $nav_links[$view]['icon']; ?> mr-2"></i>
+                    <?php echo ucfirst(str_replace('_', ' ', $view)); ?>
+                </h2>
                 <div class="user-actions d-flex align-items-center">
                     <!-- Notifications Dropdown -->
                     <div class="dropdown mr-3">
@@ -132,23 +129,43 @@ if (!file_exists($view_file)) {
         </main>
     </div>
 
+    <!-- Message Modal -->
+    <div class="modal fade" id="messageModal" tabindex="-1" role="dialog" aria-labelledby="messageModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalTitle">Notification</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="messageModalBody">
+                    <!-- Message will be inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Include JS files -->
-    <!-- Include jQuery first -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <!-- Include Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <!-- Include Bootstrap JS -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <!-- Include Chart.js (if needed) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Include Custom JS -->
     <script src="/AcadMeter/public/assets/js/teacher_dashboard.js"></script>
     <script src="/AcadMeter/public/assets/js/class_management.js"></script>
 
-    <!-- Initialize tooltips and other JavaScript functionalities -->
     <script>
         $(function () {
             $('[data-toggle="tooltip"]').tooltip();
+
+            // Toggle sidebar
+            $('#sidebar-toggle').click(function() {
+                $('.sidebar').toggleClass('collapsed');
+                $('.main-content').toggleClass('expanded');
+            });
         });
 
         // Function to filter options in a select element
@@ -159,6 +176,23 @@ if (!file_exists($view_file)) {
                 const optionText = select.options[i].text.toLowerCase();
                 select.options[i].style.display = optionText.includes(searchValue) ? 'block' : 'none';
             }
+        }
+
+        // Function to show messages in the modal
+        function showMessage(message, isError = false) {
+            const modalTitle = document.getElementById('messageModalTitle');
+            const modalBody = document.getElementById('messageModalBody');
+            
+            modalTitle.textContent = isError ? 'Error' : 'Success';
+            modalBody.textContent = message;
+            
+            const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+            modal.show();
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                modal.hide();
+            }, 5000);
         }
     </script>
 </body>

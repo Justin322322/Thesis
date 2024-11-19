@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 18, 2024 at 04:26 PM
+-- Generation Time: Nov 19, 2024 at 05:05 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -271,7 +271,8 @@ CREATE TABLE `sections` (
   `section_id` int(11) NOT NULL,
   `section_name` varchar(50) NOT NULL,
   `subject_id` int(11) NOT NULL,
-  `instructor_id` int(11) NOT NULL
+  `instructor_id` int(11) NOT NULL,
+  `school_year` varchar(9) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -284,6 +285,17 @@ CREATE TABLE `section_students` (
   `section_id` int(11) NOT NULL,
   `student_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `section_subjects`
+--
+
+CREATE TABLE `section_subjects` (
+  `section_id` int(11) NOT NULL,
+  `subject_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -344,14 +356,8 @@ CREATE TABLE `subjects` (
 --
 
 INSERT INTO `subjects` (`subject_id`, `subject_name`) VALUES
-(15, 'Filipino'),
-(1, 'Mathematics'),
-(7, 'Music'),
-(9, 'Physical Education'),
-(13, 'Research'),
-(2, 'Science'),
-(6, 'Technology and Livelihood Education (TLE)'),
-(11, 'Values Education');
+(54, 'Mathematics'),
+(44, 'Science');
 
 -- --------------------------------------------------------
 
@@ -548,6 +554,13 @@ ALTER TABLE `section_students`
   ADD KEY `fk_section_students_student` (`student_id`);
 
 --
+-- Indexes for table `section_subjects`
+--
+ALTER TABLE `section_subjects`
+  ADD PRIMARY KEY (`section_id`,`subject_id`),
+  ADD KEY `subject_id` (`subject_id`);
+
+--
 -- Indexes for table `students`
 --
 ALTER TABLE `students`
@@ -685,7 +698,7 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
-  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `students`
@@ -703,7 +716,7 @@ ALTER TABLE `student_risk`
 -- AUTO_INCREMENT for table `subjects`
 --
 ALTER TABLE `subjects`
-  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
 
 --
 -- AUTO_INCREMENT for table `teacher_evaluations`
@@ -830,6 +843,13 @@ ALTER TABLE `section_students`
   ADD CONSTRAINT `fk_section_students_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `section_students_ibfk_1` FOREIGN KEY (`section_id`) REFERENCES `sections` (`section_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `section_students_ibfk_2` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `section_subjects`
+--
+ALTER TABLE `section_subjects`
+  ADD CONSTRAINT `section_subjects_ibfk_1` FOREIGN KEY (`section_id`) REFERENCES `sections` (`section_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `section_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `students`

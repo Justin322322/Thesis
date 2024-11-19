@@ -1,101 +1,73 @@
-// File: C:\xampp\htdocs\AcadMeter\public\assets\js\teacher_dashboard.js
+console.log('Teacher Dashboard JS Initialized');
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Teacher Dashboard JS Initialized');
-
-    // Toggle Sidebar
-    const toggleButton = document.getElementById('sidebar-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main-content');
-
-    if (toggleButton && sidebar) {
-        toggleButton.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-        });
-    }
-
-    // Handle Notifications
+document.addEventListener('DOMContentLoaded', function() {
     loadNotifications();
-
-    function loadNotifications() {
-        fetch('/AcadMeter/server/controllers/get_notifications.php', {
-            method: 'GET',
-            credentials: 'include' // Include cookies for session
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                updateNotifications(data.notifications);
-            } else {
-                console.error('Failed to load notifications:', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching notifications:', error);
-        });
-    }
-
-    function updateNotifications(notifications) {
-        const notificationCount = document.getElementById('notification-count');
-        const notificationItems = document.getElementById('notification-items');
-
-        // Clear existing notifications
-        notificationItems.innerHTML = '';
-
-        if (notifications.length > 0) {
-            notificationCount.textContent = notifications.length;
-            notifications.forEach(notification => {
-                const notificationElement = document.createElement('a');
-                notificationElement.href = notification.link || '#';
-                notificationElement.className = 'dropdown-item';
-                notificationElement.innerHTML = `
-                    <strong>${notification.message}</strong><br>
-                    <small class="text-muted">${notification.created_at}</small>
-                `;
-                notificationItems.appendChild(notificationElement);
-            });
-        } else {
-            notificationCount.textContent = '0';
-            const noNotif = document.createElement('p');
-            noNotif.className = 'dropdown-item';
-            noNotif.textContent = 'No new notifications.';
-            notificationItems.appendChild(noNotif);
-        }
-    }
-
-    // Periodically refresh notifications every 5 minutes
-    setInterval(loadNotifications, 300000); // 300,000 ms = 5 minutes
-
-    // Toast notification system
-    window.showToast = function(message, type = 'info') {
-        const toastContainer = document.getElementById('toastContainer');
-        if (!toastContainer) {
-            console.error('Toast container not found');
-            return;
-        }
-
-        const toastId = 'toast-' + Date.now();
-        const toastEl = document.createElement('div');
-        toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
-        toastEl.setAttribute('role', 'alert');
-        toastEl.setAttribute('aria-live', 'assertive');
-        toastEl.setAttribute('aria-atomic', 'true');
-        toastEl.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        `;
-
-        toastContainer.appendChild(toastEl);
-        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
-        toast.show();
-
-        toastEl.addEventListener('hidden.bs.toast', function () {
-            this.remove();
-        });
-    };
 });
+
+function loadNotifications() {
+    fetch('/AcadMeter/server/controllers/get_notifications.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=get_notifications'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
+    .then(text => {
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Error parsing JSON:', e);
+            console.log('Raw response:', text);
+            throw new Error('Invalid JSON response from server');
+        }
+    })
+    .then(data => {
+        console.log('Server response:', data);
+        if (data.status === 'success') {
+            updateNotificationsList(data.notifications);
+        } else {
+            console.error('Error loading notifications:', data.message);
+            updateNotificationsList([{ message: 'Error loading notifications', created_at: new Date() }]);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        updateNotificationsList([{ message: 'Error: ' + error.message, created_at: new Date() }]);
+    });
+}
+
+function updateNotificationsList(notifications) {
+    const notificationItems = document.getElementById('notification-items');
+    const notificationCount = document.getElementById('notification-count');
+    
+    if (!notificationItems) {
+        console.warn('Notification items container not found. Make sure the element exists in your HTML.');
+        return;
+    }
+
+    notificationItems.innerHTML = '';
+    if (notifications.length === 0) {
+        notificationItems.innerHTML = '<p class="dropdown-item">No new notifications</p>';
+        notificationCount.textContent = '0';
+    } else {
+        notifications.forEach(notification => {
+            const item = document.createElement('a');
+            item.className = 'dropdown-item';
+            item.href = '#';
+            item.textContent = `${notification.message} - ${formatDate(notification.created_at)}`;
+            notificationItems.appendChild(item);
+        });
+        notificationCount.textContent = notifications.length;
+    }
+}
+
+function formatDate(dateString) {
+    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+}

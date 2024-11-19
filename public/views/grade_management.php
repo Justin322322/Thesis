@@ -118,7 +118,7 @@ $subcategories = [
         .passed-grade {
             color: #28a745;
         }
-        .add-subcategory-btn {
+        .add-subcategory-btn, .remove-subcategory-btn {
             padding: 0;
             width: 24px;
             height: 24px;
@@ -126,6 +126,9 @@ $subcategories = [
             text-align: center;
             font-size: 16px;
             border-radius: 50%;
+        }
+        .remove-subcategory-btn {
+            margin-left: 5px;
         }
         .component-description {
             font-size: 12px;

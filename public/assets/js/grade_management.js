@@ -1,4 +1,4 @@
-// File: public/assets/js/grade_management.js
+// File: /AcadMeter/public/assets/js/grade_management.js
 
 $(document).ready(function() {
     let currentQuarter = '1st';
@@ -6,9 +6,6 @@ $(document).ready(function() {
     let students = [];
     let grades = {};
     let selectedComponent = '';
-
-    // Initialize tooltips
-    $('[data-toggle="tooltip"]').tooltip();
 
     // Event listeners
     $('.quarter-tabs .tab-btn').on('click', handleQuarterChange);
@@ -19,6 +16,10 @@ $(document).ready(function() {
     $(document).on('click', '.add-subcategory-btn', handleAddSubcategory);
     $('#saveSubcategory').on('click', handleSaveSubcategory);
     $('#subcategorySelect').on('change', handleSubcategorySelectChange);
+    $(document).on('click', '.remove-subcategory-btn', handleRemoveSubcategory);
+
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
 
     // Initial data load
     fetchSections();
@@ -72,6 +73,21 @@ $(document).ready(function() {
         const selectedSubcategory = $(this).val();
         const description = subcategories[selectedComponent].find(subcat => subcat.name === selectedSubcategory).description;
         $('#subcategoryDescription').val(description);
+    }
+
+    function handleRemoveSubcategory() {
+        const studentId = $(this).data('student-id');
+        const component = $(this).data('component');
+        const subcategoryIndex = $(this).data('subcategory-index');
+
+        if (confirm('Are you sure you want to remove this subcategory?')) {
+            grades[studentId][component].subcategories.splice(subcategoryIndex, 1);
+            
+            // Recalculate the main component grade
+            grades[studentId][component].grade = calculateAverageSubcategoryGrade(grades[studentId][component].subcategories);
+
+            renderGradeTable();
+        }
     }
 
     function fetchSections() {
@@ -240,6 +256,12 @@ $(document).ready(function() {
                         value="${subcat.grade || ''}" 
                         min="0" max="100" step="0.01"
                         title="Score for ${subcat.name}">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-subcategory-btn"
+                        data-student-id="${student.student_id}"
+                        data-component="${component.key}"
+                        data-subcategory-index="${index}">
+                        <i class="fas fa-minus"></i>
+                    </button>
                 </div>`;
             });
         }
@@ -337,6 +359,8 @@ $(document).ready(function() {
             return;
         }
 
+        $('.save-grades').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+
         $.ajax({
             url: '/AcadMeter/server/controllers/grade_management_controller.php',
             type: 'POST',
@@ -355,6 +379,7 @@ $(document).ready(function() {
     }
 
     function handleSaveGradesSuccess(response) {
+        $('.save-grades').prop('disabled', false).html('<i class="fas fa-save"></i> Save Grades');
         if (response.status === 'success') {
             alert('Grades saved successfully!');
         } else {
@@ -364,6 +389,7 @@ $(document).ready(function() {
     }
 
     function handleAjaxError(jqXHR, textStatus, errorThrown) {
+        $('.save-grades').prop('disabled', false).html('<i class="fas fa-save"></i> Save Grades');
         console.error('AJAX error:', textStatus, errorThrown);
         console.log('Full response:', jqXHR.responseText);
         alert('An unexpected error occurred. Please check the console for more details.');

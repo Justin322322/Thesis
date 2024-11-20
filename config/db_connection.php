@@ -1,16 +1,21 @@
 <?php
+// db_connection.php
+
 $servername = "localhost";
 $username = "root";
 $password = "";
 $dbname = "acadmeter";
 
-try {
-    $conn = new mysqli($servername, $username, $password, $dbname);
-    if ($conn->connect_error) {
-        throw new Exception("Connection failed: " . $conn->connect_error);
-    }
-} catch (Exception $e) {
-    error_log('Database connection error: ' . $e->getMessage());
-    die("Database connection failed. Please check the server logs for more information.");
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die(json_encode(['status' => 'error', 'message' => 'Database connection failed: ' . $conn->connect_error]));
+}
+
+// Set charset to utf8mb4
+if (!$conn->set_charset("utf8mb4")) {
+    die(json_encode(['status' => 'error', 'message' => 'Error loading character set utf8mb4: ' . $conn->error]));
 }
 ?>

@@ -1,6 +1,14 @@
 <?php
 // File: C:\xampp\htdocs\AcadMeter\public\views\class_management.php
 
+// Start the session at the very beginning
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Include your database connection
+require_once __DIR__ . '/../../config/db_connection.php';
+
 // Check if the necessary variables are set
 $sections = isset($sections) ? $sections : [];
 $students = isset($students) ? $students : [];
@@ -71,7 +79,6 @@ if ($classRoster === false) {
 }
 
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -124,7 +131,7 @@ if ($classRoster === false) {
             <div class="tab-content active" id="sections-tab">
                 <h4 class="section-title">Add New Section</h4>
                 <form id="addSectionForm">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="newSectionName">Section Name</label>
                         <input type="text" class="form-control" id="newSectionName" name="section_name" required>
@@ -137,7 +144,7 @@ if ($classRoster === false) {
             <div class="tab-content" id="students-tab">
                 <h4 class="section-title">Assign Student to Section</h4>
                 <form id="assignStudentForm">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="studentSelect">Select Student</label>
                         <select class="form-control" id="studentSelect" name="student_id" required>
@@ -168,7 +175,7 @@ if ($classRoster === false) {
             <div class="tab-content" id="subjects-tab">
                 <h4 class="section-title">Manage Subjects</h4>
                 <form id="addSubjectForm" class="mb-4">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="newSubjectName">Add New Subject</label>
                         <input type="text" class="form-control" id="newSubjectName" name="subject_name" required>
@@ -178,7 +185,7 @@ if ($classRoster === false) {
 
                 <h5 class="mb-3">Assign Subject to Section</h5>
                 <form id="assignSubjectForm" class="mb-4">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="subjectSelect">Select Subject</label>
                         <select class="form-control" id="subjectSelect" name="subject_id" required>
@@ -307,7 +314,7 @@ if ($classRoster === false) {
                 </div>
                 <div class="modal-body">
                     <form id="editSubjectFormModal">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                        <!-- CSRF Token Removed -->
                         <input type="hidden" id="editSubjectId" name="subject_id">
                         <div class="form-group">
                             <label for="editSubjectName">Subject Name</label>
@@ -333,7 +340,7 @@ if ($classRoster === false) {
                 </div>
                 <div class="modal-body">
                     <form id="deleteSubjectFormModal">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                        <!-- CSRF Token Removed -->
                         <input type="hidden" id="deleteSubjectId" name="subject_id">
                         <p>Are you sure you want to delete the subject "<strong id="deleteSubjectName"></strong>"?</p>
                         <button type="submit" class="btn btn-danger">Yes, Delete</button>
@@ -357,7 +364,7 @@ if ($classRoster === false) {
                 </div>
                 <div class="modal-body">
                     <form id="deleteSectionFormModal">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                        <!-- CSRF Token Removed -->
                         <input type="hidden" id="deleteSectionId" name="section_id">
                         <p>Are you sure you want to delete the section "<strong id="deleteSectionName"></strong>"? This action cannot be undone and will remove all associated students and subjects.</p>
                         <button type="submit" class="btn btn-danger">Yes, Delete</button>
@@ -369,6 +376,7 @@ if ($classRoster === false) {
         </div>
     </div>
 
+    <!-- JavaScript Dependencies -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>

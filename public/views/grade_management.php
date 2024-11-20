@@ -19,7 +19,7 @@ $gradeManagementController = new GradeManagementController($conn);
 
 $instructor_id = $gradeManagementController->getInstructorId($_SESSION['user_id']);
 
-$quarters = ['1st', '2nd', '3rd', '4th'];
+$quarters = [1, 2, 3, 4];
 
 $components = [
     ['key' => 'written_works', 'name' => 'Written Works', 'weight' => 30],
@@ -72,8 +72,8 @@ $subcategories = [
         }
         .grade-input, .subcategory-score {
             width: 60px !important;
-            text-align: center;
-            padding: 4px !important;
+            text-align: right;
+            padding: 4px 8px !important;
             height: 30px !important;
         }
         .subcategory-name {
@@ -135,6 +135,17 @@ $subcategories = [
             color: #6c757d;
             margin-top: 4px;
         }
+        .grade-input::-webkit-inner-spin-button, 
+        .grade-input::-webkit-outer-spin-button,
+        .subcategory-score::-webkit-inner-spin-button,
+        .subcategory-score::-webkit-outer-spin-button { 
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .grade-input[type=number],
+        .subcategory-score[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 <body>
@@ -145,23 +156,38 @@ $subcategories = [
             <div class="card-body">
                 <form id="gradeForm" method="post" action="">
                     <div class="form-row">
-                        <div class="form-group col-md-6">
+                        <div class="form-group col-md-4">
                             <label for="section">Select Section:</label>
                             <select id="section" name="section" class="form-control" required>
                                 <option value="">-- Select Section --</option>
                             </select>
                         </div>
-                        <div class="form-group col-md-6">
+                        <div class="form-group col-md-4">
                             <label for="subject">Select Subject:</label>
                             <select id="subject" name="subject" class="form-control" required disabled>
                                 <option value="">-- Select Subject --</option>
                             </select>
                         </div>
+                        <div class="form-group col-md-4">
+                            <label for="academic_year">Academic Year:</label>
+                            <input type="text" id="academic_year" name="academic_year" class="form-control" placeholder="YYYY-YYYY" required pattern="\d{4}-\d{4}">
+                        </div>
                     </div>
 
                     <div class="quarter-tabs mb-3">
-                        <?php foreach ($quarters as $index => $quarter): ?>
-                            <button type="button" class="btn btn-outline-primary tab-btn<?php echo $index === 0 ? ' active' : ''; ?>" data-quarter="<?php echo $quarter; ?>"><?php echo $quarter; ?> Quarter</button>
+                        <?php foreach ($quarters as $quarter): ?>
+                            <button type="button" class="btn btn-outline-primary tab-btn<?php echo $quarter === 1 ? ' active' : ''; ?>" data-quarter="<?php echo $quarter; ?>">
+                                <?php 
+                                $suffix = match($quarter) {
+                                    1 => 'st',
+                                    2 => 'nd',
+                                    3 => 'rd',
+                                    4 => 'th',
+                                    default => 'th'
+                                };
+                                echo $quarter . $suffix . ' Quarter';
+                                ?>
+                            </button>
                         <?php endforeach; ?>
                     </div>
 

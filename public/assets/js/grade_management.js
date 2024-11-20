@@ -1,52 +1,82 @@
-// File: /AcadMeter/public/assets/js/grade_management.js
+document.addEventListener('DOMContentLoaded', () => {
+    const state = {
+        currentQuarter: 1,
+        currentTab: 'summary',
+        students: [],
+        grades: {},
+        selectedComponent: '',
+        isSaving: false
+    };
 
-$(document).ready(function() {
-    let currentQuarter = '1st';
-    let currentTab = 'summary';
-    let students = [];
-    let grades = {};
-    let selectedComponent = '';
+    // Ensure subcategories is defined globally
+    if (typeof window.subcategories === 'undefined') {
+        console.error('Subcategories are not defined. Please check if they are properly passed from PHP.');
+        window.subcategories = {}; // Initialize with an empty object to prevent errors
+    }
 
     // Event listeners
-    $('.quarter-tabs .tab-btn').on('click', handleQuarterChange);
-    $('.grade-tabs .grade-tab').on('click', handleTabChange);
-    $('#section').on('change', handleSectionChange);
-    $('#subject').on('change', handleSubjectChange);
-    $('#gradeForm').on('submit', handleGradeFormSubmit);
-    $(document).on('click', '.add-subcategory-btn', handleAddSubcategory);
-    $('#saveSubcategory').on('click', handleSaveSubcategory);
-    $('#subcategorySelect').on('change', handleSubcategorySelectChange);
-    $(document).on('click', '.remove-subcategory-btn', handleRemoveSubcategory);
+    document.querySelectorAll('.quarter-tabs .tab-btn').forEach(btn => 
+        btn.addEventListener('click', handleQuarterChange));
+
+    document.querySelectorAll('.grade-tabs .grade-tab').forEach(tab => 
+        tab.addEventListener('click', handleTabChange));
+
+    document.getElementById('section').addEventListener('change', handleSectionChange);
+    document.getElementById('subject').addEventListener('change', handleSubjectChange);
+    document.getElementById('gradeForm').addEventListener('submit', handleFormSubmit);
+
+    // Use event delegation for dynamically added elements
+    document.addEventListener('click', handleDynamicClicks);
+
+    // Use event delegation for grade inputs
+    document.addEventListener('input', throttle(handleGradeInput, 200));
+    document.addEventListener('blur', formatGradeInput, true);
+    document.addEventListener('keydown', preventSubmit);
+    document.addEventListener('focus', handleGradeFocus, true);
+
+    document.getElementById('saveSubcategory').addEventListener('click', handleSaveSubcategory);
+    document.getElementById('subcategorySelect').addEventListener('change', handleSubcategorySelectChange);
+
+    ['section', 'subject', 'academic_year'].forEach(id => {
+        const element = document.getElementById(id);
+        element.addEventListener('change', updateSaveButtonState);
+        element.addEventListener('input', updateSaveButtonState);
+    });
 
     // Initialize tooltips
-    $('[data-toggle="tooltip"]').tooltip();
+    initializeTooltips();
 
     // Initial data load
     fetchSections();
 
-    function handleQuarterChange() {
-        currentQuarter = $(this).data('quarter');
-        $('.quarter-tabs .tab-btn').removeClass('active');
-        $(this).addClass('active');
+    function handleQuarterChange(event) {
+        state.currentQuarter = parseInt(event.target.dataset.quarter);
+        updateActiveTab('.quarter-tabs .tab-btn', event.target);
         fetchGrades();
     }
 
-    function handleTabChange() {
-        currentTab = $(this).data('tab');
-        $('.grade-tabs .grade-tab').removeClass('active');
-        $(this).addClass('active');
-        $('.tab-content').removeClass('active');
-        $(`#${currentTab}-tab`).addClass('active');
+    function handleTabChange(event) {
+        state.currentTab = event.target.dataset.tab;
+        updateActiveTab('.grade-tabs .grade-tab', event.target);
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${state.currentTab}-tab`);
+        });
         renderGradeTable();
     }
 
+    function updateActiveTab(selector, activeElement) {
+        document.querySelectorAll(selector).forEach(el => el.classList.remove('active'));
+        activeElement.classList.add('active');
+    }
+
     function handleSectionChange() {
-        const sectionId = $(this).val();
+        const sectionId = document.getElementById('section').value;
         if (sectionId) {
             fetchSubjects(sectionId);
-            $('#subject').prop('disabled', false);
+            document.getElementById('subject').disabled = false;
         } else {
-            $('#subject').prop('disabled', true).html('<option value="">-- Select Subject --</option>');
+            document.getElementById('subject').disabled = true;
+            document.getElementById('subject').innerHTML = '<option value="">-- Select Subject --</option>';
         }
     }
 
@@ -55,352 +85,615 @@ $(document).ready(function() {
         fetchGrades();
     }
 
-    function handleGradeFormSubmit(e) {
-        e.preventDefault();
-        saveGrades();
+    function handleDynamicClicks(event) {
+        if (event.target.classList.contains('add-subcategory-btn')) {
+            handleAddSubcategory(event);
+        } else if (event.target.classList.contains('remove-subcategory-btn')) {
+            handleRemoveSubcategory(event);
+        }
     }
 
-    function handleAddSubcategory() {
-        selectedComponent = $(this).data('component');
+    function handleAddSubcategory(event) {
+        event.preventDefault();
+        state.selectedComponent = event.target.dataset.component;
+        console.log("Selected Component:", state.selectedComponent);
         openSubcategoryModal();
     }
 
-    function handleSaveSubcategory() {
-        saveSubcategory();
-    }
-
-    function handleSubcategorySelectChange() {
-        const selectedSubcategory = $(this).val();
-        const description = subcategories[selectedComponent].find(subcat => subcat.name === selectedSubcategory).description;
-        $('#subcategoryDescription').val(description);
-    }
-
-    function handleRemoveSubcategory() {
-        const studentId = $(this).data('student-id');
-        const component = $(this).data('component');
-        const subcategoryIndex = $(this).data('subcategory-index');
+    function handleRemoveSubcategory(event) {
+        event.preventDefault();
+        const button = event.target.closest('.remove-subcategory-btn');
+        const { studentId, component, subcategoryIndex } = button.dataset;
 
         if (confirm('Are you sure you want to remove this subcategory?')) {
-            grades[studentId][component].subcategories.splice(subcategoryIndex, 1);
-            
-            // Recalculate the main component grade
-            grades[studentId][component].grade = calculateAverageSubcategoryGrade(grades[studentId][component].subcategories);
+            if (state.grades[studentId]?.[component]?.subcategories) {
+                state.grades[studentId][component].subcategories.splice(parseInt(subcategoryIndex), 1);
+                
+                // Recalculate the main component grade
+                state.grades[studentId][component].grade = calculateAverageSubcategoryGrade(state.grades[studentId][component].subcategories);
+            }
 
             renderGradeTable();
         }
     }
 
-    function fetchSections() {
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'fetch_sections',
-                instructor_id: instructorId
-            },
-            dataType: 'json',
-            success: handleFetchSectionsSuccess,
-            error: handleAjaxError
-        });
-    }
-
-    function handleFetchSectionsSuccess(response) {
-        if (response.status === 'success') {
-            $('#section').empty().append('<option value="">-- Select Section --</option>');
-            response.sections.forEach(function(section) {
-                $('#section').append(`<option value="${section.section_id}">${section.section_name}</option>`);
+    async function fetchSections() {
+        try {
+            const response = await fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=fetch_sections&instructor_id=${instructorId}`
             });
-        } else {
-            console.error('Failed to fetch sections:', response.message);
+            const data = await response.json();
+            if (data.status === 'success') {
+                populateSelect('section', data.sections, 'section_id', 'section_name');
+            } else {
+                console.error('Failed to fetch sections:', data.message);
+            }
+        } catch (error) {
+            handleAjaxError(error);
         }
     }
 
-    function fetchSubjects(sectionId) {
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'fetch_subjects',
-                section_id: sectionId
-            },
-            dataType: 'json',
-            success: handleFetchSubjectsSuccess,
-            error: handleAjaxError
-        });
-    }
-
-    function handleFetchSubjectsSuccess(response) {
-        if (response.status === 'success') {
-            $('#subject').empty().append('<option value="">-- Select Subject --</option>');
-            response.subjects.forEach(function(subject) {
-                $('#subject').append(`<option value="${subject.subject_id}">${subject.subject_name}</option>`);
+    async function fetchSubjects(sectionId) {
+        try {
+            const response = await fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=fetch_subjects&section_id=${sectionId}`
             });
-        } else {
-            console.error('Failed to fetch subjects:', response.message);
+            const data = await response.json();
+            if (data.status === 'success') {
+                populateSelect('subject', data.subjects, 'subject_id', 'subject_name');
+            } else {
+                console.error('Failed to fetch subjects:', data.message);
+            }
+        } catch (error) {
+            handleAjaxError(error);
         }
     }
 
-    function fetchStudents() {
-        const sectionId = $('#section').val();
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'fetch_students',
-                section_id: sectionId
-            },
-            dataType: 'json',
-            success: handleFetchStudentsSuccess,
-            error: handleAjaxError
-        });
-    }
-
-    function handleFetchStudentsSuccess(response) {
-        if (response.status === 'success') {
-            students = response.students;
-            renderGradeTable();
-        } else {
-            console.error('Failed to fetch students:', response.message);
+    async function fetchStudents() {
+        const sectionId = document.getElementById('section').value;
+        try {
+            const response = await fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=fetch_students&section_id=${sectionId}`
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                state.students = data.students;
+                renderGradeTable();
+            } else {
+                console.error('Failed to fetch students:', data.message);
+            }
+        } catch (error) {
+            handleAjaxError(error);
         }
     }
 
-    function fetchGrades() {
-        const sectionId = $('#section').val();
-        const subjectId = $('#subject').val();
-        if (!sectionId || !subjectId) return;
+    async function fetchGrades() {
+        const sectionId = document.getElementById('section').value;
+        const subjectId = document.getElementById('subject').value;
+        const academicYear = document.getElementById('academic_year').value;
+        if (!sectionId || !subjectId || !academicYear) return;
 
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'fetch_grades',
-                section_id: sectionId,
-                subject_id: subjectId,
-                quarter: currentQuarter
-            },
-            dataType: 'json',
-            success: handleFetchGradesSuccess,
-            error: handleAjaxError
-        });
-    }
-
-    function handleFetchGradesSuccess(response) {
-        if (response.status === 'success') {
-            grades = response.grades;
-            renderGradeTable();
-        } else {
-            console.error('Failed to fetch grades:', response.message);
+        try {
+            const response = await fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=fetch_grades&section_id=${sectionId}&subject_id=${subjectId}&quarter=${state.currentQuarter}&academic_year=${academicYear}`
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                state.grades = data.grades;
+                renderGradeTable();
+            } else {
+                console.error('Failed to fetch grades:', data.message);
+            }
+        } catch (error) {
+            handleAjaxError(error);
         }
     }
 
     function renderGradeTable() {
-        const tableBody = currentTab === 'summary' ? $('#gradeTableBody') : $('#detailedGradeTableBody');
-        tableBody.empty();
+        const tableBody = document.getElementById(`${state.currentTab === 'summary' ? 'gradeTableBody' : 'detailedGradeTableBody'}`);
+        tableBody.innerHTML = '';
 
-        students.forEach(function(student) {
-            const studentGrades = grades[student.student_id] || {};
+        state.students.forEach(student => {
+            const studentGrades = state.grades[student.student_id] || {};
             const initialGrade = calculateInitialGrade(studentGrades);
             const quarterlyGrade = calculateQuarterlyGrade(initialGrade);
             const remarks = getRemarks(quarterlyGrade);
 
-            let row = `<tr><td class="student-name">${student.student_name}</td>`;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="student-name">${student.student_name}</td>
+                ${components.map(component => 
+                    state.currentTab === 'summary' 
+                        ? renderSummaryCell(student, component, studentGrades)
+                        : renderDetailedCell(student, component, studentGrades)
+                ).join('')}
+                <td class="initial-grade">${initialGrade !== null ? initialGrade.toFixed(2) : ''}</td>
+                <td class="quarterly-grade ${quarterlyGrade < 75 ? 'failed-grade' : ''}">${quarterlyGrade !== null ? quarterlyGrade : ''}</td>
+                <td class="remarks ${remarks === 'Failed' ? 'failed-grade' : 'passed-grade'}">${remarks}</td>
+            `;
 
-            components.forEach(function(component) {
-                if (currentTab === 'summary') {
-                    row += renderSummaryCell(student, component, studentGrades);
-                } else {
-                    row += renderDetailedCell(student, component, studentGrades);
-                }
-            });
-
-            row += `<td class="initial-grade">${initialGrade.toFixed(2)}</td>`;
-            row += `<td class="quarterly-grade ${quarterlyGrade === 'Failed' ? 'failed-grade' : ''}">${quarterlyGrade}</td>`;
-            row += `<td class="remarks ${remarks === 'Failed' ? 'failed-grade' : 'passed-grade'}">${remarks}</td></tr>`;
-
-            tableBody.append(row);
+            tableBody.appendChild(row);
         });
 
-        // Re-attach event listeners
-        $('.grade-input, .subcategory-score').off('change').on('change', updateGrade);
-
-        // Initialize tooltips after rendering
         initializeTooltips();
+        setGradeInputAttributes();
     }
 
     function renderSummaryCell(student, component, studentGrades) {
-        return `<td>
-            <input type="number" class="form-control grade-input" 
-                data-student-id="${student.student_id}" 
-                data-component="${component.key}" 
-                value="${studentGrades[component.key]?.grade || ''}" 
-                min="0" max="100" step="0.01"
-                title="Total score for all ${component.name.toLowerCase()}">
-        </td>`;
+        const componentId = components.findIndex(c => c.key === component.key) + 1;
+        const grade = studentGrades[componentId]?.grade || '';
+        return `
+            <td>
+                <input type="text" class="form-control grade-input" 
+                    data-student-id="${student.student_id}" 
+                    data-component="${componentId}" 
+                    value="${grade}" 
+                    style="width: 80px; text-align: right; padding-right: 5px;"
+                    title="Total score for all ${component.name.toLowerCase()}">
+            </td>
+        `;
     }
 
     function renderDetailedCell(student, component, studentGrades) {
-        let cell = `<td class="grade-cell">
-            <div class="component-total" title="Average of all ${component.name.toLowerCase()} activities">
-                ${studentGrades[component.key]?.grade || '0.00'}
-            </div>
-            <div class="subcategories">`;
+        const componentId = components.findIndex(c => c.key === component.key) + 1;
+        const componentGrade = studentGrades[componentId];
+        let subcategoriesHtml = '';
 
-        if (studentGrades[component.key]?.subcategories) {
-            studentGrades[component.key].subcategories.forEach(function(subcat, index) {
-                cell += `<div class="subcategory-row">
-                    <span class="subcategory-name" title="${subcat.description}">${subcat.name}</span>
-                    <input type="number" class="form-control subcategory-score" 
+        if (componentGrade?.subcategories) {
+            subcategoriesHtml = componentGrade.subcategories.map((subcat, index) => `
+                <div class="subcategory-row">
+                    <span class="subcategory-name" title="${subcat.description || ''}">${subcat.name || ''}</span>
+                    <input type="text" class="form-control subcategory-score" 
                         data-student-id="${student.student_id}" 
-                        data-component="${component.key}"
+                        data-component="${componentId}"
                         data-subcategory-index="${index}"
-                        value="${subcat.grade || ''}" 
-                        min="0" max="100" step="0.01"
-                        title="Score for ${subcat.name}">
+                        value="${subcat.grade !== null && subcat.grade !== undefined ? subcat.grade : ''}" 
+                        style="width: 80px; text-align: right; padding-right: 5px;"
+                        title="Score for ${subcat.name || ''}">
                     <button type="button" class="btn btn-sm btn-outline-danger remove-subcategory-btn"
                         data-student-id="${student.student_id}"
-                        data-component="${component.key}"
+                        data-component="${componentId}"
                         data-subcategory-index="${index}">
                         <i class="fas fa-minus"></i>
                     </button>
-                </div>`;
-            });
+                </div>
+            `).join('');
         }
 
-        cell += `</div></td>`;
+        return `
+            <td class="grade-cell">
+                <div class="component-total" title="Average of all ${component.name.toLowerCase()} activities">
+                    ${componentGrade && componentGrade.grade !== null ? componentGrade.grade.toFixed(2) : ''}
+                </div>
+                <div class="subcategories">
+                    ${subcategoriesHtml}
+                </div>
+            </td>
+        `;
+    }
 
-        return cell;
+    function handleGradeInput(event) {
+        const input = event.target;
+        if (!input.classList.contains('grade-input') && !input.classList.contains('subcategory-score')) {
+            return;
+        }
+
+        let value = input.value;
+        const cursorPosition = input.selectionStart;
+
+        // Remove any non-digit characters except the first decimal point
+        value = value.replace(/[^\d.]/g, '').replace(/\./, 'x').replace(/\./g, '').replace(/x/, '.');
+
+        // Limit to 3 digits before decimal and 2 after
+        const [integerPart, fractionalPart] = value.split('.');
+        value = `${integerPart.slice(0, 3)}${fractionalPart ? `.${fractionalPart.slice(0, 2)}` : ''}`;
+
+        // Prevent value from exceeding 100
+        value = Math.min(parseFloat(value) || 0, 100).toString();
+
+        // Only update the value if it has changed
+        if (input.value !== value) {
+            input.value = value;
+            
+            // Only try to set the selection range if the input is not of type "number"
+            if (input.type !== 'number') {
+                // Restore cursor position
+                const newCursorPosition = Math.min(cursorPosition, value.length);
+                input.setSelectionRange(newCursorPosition, newCursorPosition);
+            }
+        }
+
+        updateGrade(event);
+    }
+
+    function formatGradeInput(event) {
+        const input = event.target;
+        if (!input.classList.contains('grade-input') && !input.classList.contains('subcategory-score')) {
+            return;
+        }
+
+        let value = input.value.trim();
+        if (value === '') return;
+
+        let numericValue = parseFloat(value);
+        if (isNaN(numericValue)) {
+            numericValue = null;
+        } else if (numericValue > 100) {
+            numericValue = 100;
+        }
+
+        input.value = numericValue !== null ? numericValue.toFixed(2) : '';
+    }
+
+    function handleGradeFocus(event) {
+        if (event.target.classList.contains('grade-input') || event.target.classList.contains('subcategory-score')) {
+            event.target.select();
+        }
+    }
+
+    function preventSubmit(event) {
+        if ((event.target.classList.contains('grade-input') || event.target.classList.contains('subcategory-score')) && event.key === 'Enter') {
+            event.preventDefault();
+            event.target.blur();
+        }
+    }
+
+    function updateGrade(event) {
+        const input = event.target;
+        const { studentId, component, subcategoryIndex } = input.dataset;
+        
+        const numericValue = parseFloat(input.value);
+        if (!state.grades[studentId]) {
+            state.grades[studentId] = {};
+        }
+        if (!state.grades[studentId][component]) {
+            state.grades[studentId][component] = { grade: null, subcategories: [] };
+        }
+
+        if (input.classList.contains('subcategory-score')) {
+            if (!state.grades[studentId][component].subcategories[subcategoryIndex]) {
+                state.grades[studentId][component].subcategories[subcategoryIndex] = {};
+            }
+            state.grades[studentId][component].subcategories[subcategoryIndex].grade = isNaN(numericValue) ? null : numericValue;
+            // Recalculate the main component grade
+            state.grades[studentId][component].grade = calculateAverageSubcategoryGrade(state.grades[studentId][component].subcategories);
+        } else {
+            state.grades[studentId][component].grade = isNaN(numericValue) ? null : numericValue;
+        }
+
+        updateGradeDisplay(input, studentId, component);
+    }
+
+    function updateGradeDisplay(input, studentId, component) {
+        const row = input.closest('tr');
+        const componentTotal = input.closest('td').querySelector('.component-total');
+        if (componentTotal) {
+            componentTotal.textContent = state.grades[studentId][component].grade !== null 
+                ? state.grades[studentId][component].grade.toFixed(2) 
+                : '';
+        }
+
+        const initialGrade = calculateInitialGrade(state.grades[studentId]);
+        const quarterlyGrade = calculateQuarterlyGrade(initialGrade);
+        const remarks = getRemarks(quarterlyGrade);
+
+        row.querySelector('.initial-grade').textContent = initialGrade !== null ? initialGrade.toFixed(2) : '';
+        row.querySelector('.quarterly-grade').textContent = quarterlyGrade !== null ? quarterlyGrade : '';
+        row.querySelector('.remarks').textContent = remarks;
+        row.querySelector('.quarterly-grade').className = `quarterly-grade ${quarterlyGrade !== null && quarterlyGrade < 75 ? 'failed-grade' : ''}`;
+        row.querySelector('.remarks').className = `remarks ${remarks === 'Failed' ? 'failed-grade' : 'passed-grade'}`;
     }
 
     function calculateInitialGrade(studentGrades) {
-        return components.reduce(function(total, component) {
-            return total + (studentGrades[component.key]?.grade || 0) * (component.weight / 100);
-        }, 0);
+        let totalWeightedGrade = 0;
+        let totalWeight = 0;
+
+        components.forEach((component, index) => {
+            const componentId = index + 1;
+            const grade = studentGrades[componentId]?.grade;
+            if (grade !== null && grade !== undefined) {
+                totalWeightedGrade += grade * (component.weight / 100);
+                totalWeight += component.weight / 100;
+            }
+        });
+
+        return totalWeight > 0 ? totalWeightedGrade / totalWeight : null;
     }
 
     function calculateQuarterlyGrade(initialGrade) {
-        return initialGrade >= 75 ? Math.round(initialGrade) : 'Failed';
+        return initialGrade !== null ? Math.round(initialGrade) : null;
     }
 
     function getRemarks(quarterlyGrade) {
-        return quarterlyGrade === 'Failed' ? 'Failed' : 'Passed';
-    }
-
-    function updateGrade() {
-        const studentId = $(this).data('student-id');
-        const component = $(this).data('component');
-        const value = parseFloat($(this).val()) || 0;
-
-        if (!grades[studentId]) {
-            grades[studentId] = {};
-        }
-        if (!grades[studentId][component]) {
-            grades[studentId][component] = { grade: 0, subcategories: [] };
-        }
-
-        if ($(this).hasClass('subcategory-score')) {
-            const subcategoryIndex = $(this).data('subcategory-index');
-            grades[studentId][component].subcategories[subcategoryIndex].grade = value;
-            // Recalculate the main component grade
-            grades[studentId][component].grade = calculateAverageSubcategoryGrade(grades[studentId][component].subcategories);
-        } else {
-            grades[studentId][component].grade = value;
-        }
-
-        renderGradeTable();
+        return quarterlyGrade !== null ? (quarterlyGrade >= 75 ? 'Passed' : 'Failed') : '';
     }
 
     function calculateAverageSubcategoryGrade(subcategories) {
-        const total = subcategories.reduce((sum, subcat) => sum + (subcat.grade || 0), 0);
-        return subcategories.length > 0 ? total / subcategories.length : 0;
+        if (!subcategories || subcategories.length === 0) return null;
+        const validSubcategories = subcategories.filter(subcat => subcat && subcat.grade != null);
+        if (validSubcategories.length === 0) return null;
+        const totalGrade = validSubcategories.reduce((sum, subcat) => sum + subcat.grade, 0);
+        return totalGrade / validSubcategories.length;
     }
 
     function openSubcategoryModal() {
-        $('#componentSelect').val(selectedComponent);
-        updateSubcategorySelect();
-        $('#subcategoryModal').modal('show');
+        if (state.selectedComponent) {
+            document.getElementById('componentSelect').value = state.selectedComponent;
+            document.getElementById('componentSelect').disabled = true;
+            populateSubcategorySelect();
+            $('#subcategoryModal').modal('show');
+        } else {
+            console.error('No component selected');
+            alert('Please select a component before adding a subcategory.');
+        }
     }
 
-    function updateSubcategorySelect() {
-        $('#subcategorySelect').empty();
-        subcategories[selectedComponent].forEach(function(subcat) {
-            $('#subcategorySelect').append(`<option value="${subcat.name}">${subcat.name}</option>`);
-        });
-        $('#subcategoryDescription').val(subcategories[selectedComponent][0].description);
+    async function populateSubcategorySelect() {
+        const subcategorySelect = document.getElementById('subcategorySelect');
+        subcategorySelect.innerHTML = '';
+        console.log("Populating subcategory select for component:", state.selectedComponent);
+        console.log("Available subcategories:", window.subcategories);
+
+        if (!window.subcategories[state.selectedComponent] || window.subcategories[state.selectedComponent].length === 0) {
+            try {
+                const response = await fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=fetch_subcategories&component_key=${state.selectedComponent}`
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.subcategories[state.selectedComponent] = data.subcategories;
+                    updateSubcategoryDropdown();
+                } else {
+                    console.error('Failed to fetch subcategories:', data.message);
+                }
+            } catch (error) {
+                console.error('Error fetching subcategories:', error);
+            }
+        } else {
+            updateSubcategoryDropdown();
+        }
     }
 
-    function saveSubcategory() {
-        const subcategoryName = $('#subcategorySelect').val();
-        const description = $('#subcategoryDescription').val();
+    function updateSubcategoryDropdown() {
+        const subcategorySelect = document.getElementById('subcategorySelect');
+        subcategorySelect.innerHTML = window.subcategories[state.selectedComponent]
+            .map(subcat => `<option value="${subcat.name}">${subcat.name}</option>`)
+            .join('');
+        subcategorySelect.dispatchEvent(new Event('change'));
+    }
 
-        students.forEach(function(student) {
-            if (!grades[student.student_id]) {
-                grades[student.student_id] = {};
+    function handleSaveSubcategory() {
+        const subcategoryName = document.getElementById('subcategorySelect').value;
+        const subcategoryDescription = document.getElementById('subcategoryDescription').value;
+
+        if (!subcategoryName) {
+            alert('Please select a subcategory.');
+            return;
+        }
+
+        console.log("Saving subcategory:", subcategoryName);
+
+        state.students.forEach(student => {
+            const componentId = components.findIndex(c => c.key === state.selectedComponent) + 1;
+            state.grades[student.student_id] = state.grades[student.student_id] || {};
+            state.grades[student.student_id][componentId] = state.grades[student.student_id][componentId] || { subcategories: [] };
+
+            if (!state.grades[student.student_id][componentId].subcategories.some(subcat => subcat.name === subcategoryName)) {
+                state.grades[student.student_id][componentId].subcategories.push({
+                    name: subcategoryName,
+                    description: subcategoryDescription,
+                    grade: null
+                });
+                console.log("Added subcategory for student:", student.student_id);
+            } else {
+                console.log("Subcategory already exists for student:", student.student_id);
             }
-            if (!grades[student.student_id][selectedComponent]) {
-                grades[student.student_id][selectedComponent] = { grade: 0, subcategories: [] };
-            }
-            grades[student.student_id][selectedComponent].subcategories.push({
-                name: subcategoryName,
-                description: description,
-                grade: 0
-            });
         });
 
         $('#subcategoryModal').modal('hide');
         renderGradeTable();
     }
 
-    function saveGrades() {
-        const sectionId = $('#section').val();
-        const subjectId = $('#subject').val();
+    function handleSubcategorySelectChange() {
+        const selectedSubcategory = document.getElementById('subcategorySelect').value;
+        console.log("Selected Subcategory:", selectedSubcategory);
+        console.log("Current subcategories:", window.subcategories);
+        console.log("Selected Component:", state.selectedComponent);
 
-        if (!sectionId || !subjectId) {
-            alert('Please select both a section and a subject before saving grades.');
-            return;
+        if (window.subcategories && state.selectedComponent && window.subcategories[state.selectedComponent]) {
+            const subcategoryInfo = window.subcategories[state.selectedComponent].find(subcat => subcat.name === selectedSubcategory);
+            if (subcategoryInfo) {
+                document.getElementById('subcategoryDescription').value = subcategoryInfo.description;
+            } else {
+                document.getElementById('subcategoryDescription').value = '';
+                console.warn('No matching subcategory found for:', selectedSubcategory);
+            }
+        } else {
+            document.getElementById('subcategoryDescription').value = '';
+            console.warn('Subcategories or selected component is undefined:', { subcategories: window.subcategories, selectedComponent: state.selectedComponent });
         }
+    }
 
-        $('.save-grades').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+    function initializeTooltips() {
+        $('[data-toggle="tooltip"]').tooltip({
+            trigger: 'click',
+            placement: 'top'
+        }).on('click', function (e) {
+            e.preventDefault();
+            $(this).tooltip('toggle');
+        });
 
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            type: 'POST',
-            data: {
-                action: 'save_grades',
-                grades: JSON.stringify(grades),
-                detailed_grades: JSON.stringify(grades),
-                section_id: sectionId,
-                subject_id: subjectId,
-                quarter: currentQuarter
-            },
-            dataType: 'json',
-            success: handleSaveGradesSuccess,
-            error: handleAjaxError
+        document.addEventListener('click', function (e) {
+            if (!e.target.hasAttribute('data-toggle') || e.target.getAttribute('data-toggle') !== 'tooltip') {
+                $('[data-toggle="tooltip"]').tooltip('hide');
+            }
         });
     }
 
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        if (validateForm()) {
+            confirmSaveGrades();
+        }
+    }
+
+    function validateForm() {
+        const sectionId = document.getElementById('section').value;
+        const subjectId = document.getElementById('subject').value;
+        const academicYear = document.getElementById('academic_year').value;
+
+        if (!sectionId || !subjectId || !academicYear) {
+            alert('Please select a section, subject, and enter the academic year.');
+            return false;
+        }
+
+        if (!academicYear.match(/^\d{4}-\d{4}$/)) {
+            alert('Please enter a valid academic year in the format YYYY-YYYY.');
+            return false;
+        }
+
+        return true;
+    }
+
+    function updateSaveButtonState() {
+        const sectionId = document.getElementById('section').value;
+        const subjectId = document.getElementById('subject').value;
+        const academicYear = document.getElementById('academic_year').value;
+        document.querySelector('.save-grades').disabled = !(sectionId && subjectId && academicYear);
+    }
+
+    function handleAjaxError(error) {
+        console.error('AJAX Error:', error);
+
+        if (error.responseText) {
+            console.error('Server Response:', error.responseText);
+        }
+
+        alert('An error occurred. Please check the console for details.');
+        document.querySelector('.save-grades').disabled = false;
+        document.querySelector('.save-grades').innerHTML = '<i class="fas fa-save"></i> Save Grades';
+        state.isSaving = false;
+    }
+
+    function setGradeInputAttributes() {
+        document.querySelectorAll('.grade-input, .subcategory-score').forEach(input => {
+            input.setAttribute('type', 'text'); // Change type to 'text' instead of 'number'
+            input.setAttribute('inputmode', 'decimal');
+            input.setAttribute('pattern', '[0-9]*\\.?[0-9]*');
+            input.setAttribute('maxlength', '6');
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('spellcheck', 'false');
+        });
+    }
+
+    function confirmSaveGrades() {
+        if (confirm('Are you sure you want to save the grades?')) {
+            saveGrades();
+        }
+    }
+
+    async function saveGrades() {
+        if (state.isSaving) return;
+
+        state.isSaving = true;
+        const sectionId = document.getElementById('section').value;
+        const subjectId = document.getElementById('subject').value;
+        const academicYear = document.getElementById('academic_year').value;
+
+        const saveButton = document.querySelector('.save-grades');
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        const cleanGrades = Object.fromEntries(
+            Object.entries(state.grades).map(([studentId, components]) => [
+                studentId,
+                Object.fromEntries(
+                    Object.entries(components).map(([componentId, data]) => [
+                        componentId,
+                        {
+                            grade: data.grade,
+                            subcategories: data.subcategories.map(subcat => ({
+                                name: subcat.name ? String(subcat.name).replace(/[<>]/g, '') : '',
+                                description: subcat.description ? String(subcat.description).replace(/[<>]/g, '') : '',
+                                grade: subcat.grade
+                            }))
+                        }
+                    ])
+                )
+            ])
+        );
+
+        const gradesData = encodeURIComponent(JSON.stringify(cleanGrades));
+        console.log('Clean grades data being sent:', cleanGrades);
+
+        try {
+            const response = await fetch('/AcadMeter/server/controllers/grade_management_controller.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=save_grades&section_id=${sectionId}&subject_id=${subjectId}&quarter=${state.currentQuarter}&academic_year=${academicYear}&grades=${gradesData}`
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            handleSaveGradesSuccess(result);
+        } catch (error) {
+            handleAjaxError(error);
+        } finally {
+            state.isSaving = false;
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save"></i> Save Grades';
+        }
+    }
+
     function handleSaveGradesSuccess(response) {
-        $('.save-grades').prop('disabled', false).html('<i class="fas fa-save"></i> Save Grades');
         if (response.status === 'success') {
             alert('Grades saved successfully!');
+            fetchGrades();
         } else {
             console.error('Failed to save grades:', response.message);
             alert('Failed to save grades. Please try again.');
         }
     }
 
-    function handleAjaxError(jqXHR, textStatus, errorThrown) {
-        $('.save-grades').prop('disabled', false).html('<i class="fas fa-save"></i> Save Grades');
-        console.error('AJAX error:', textStatus, errorThrown);
-        console.log('Full response:', jqXHR.responseText);
-        alert('An unexpected error occurred. Please check the console for more details.');
+    function throttle(func, limit) {
+        let lastFunc;
+        let lastRan;
+        return function (...args) {
+            if (!lastRan) {
+                func.apply(this, args);
+                lastRan = Date.now();
+            } else {
+                clearTimeout(lastFunc);
+                lastFunc = setTimeout(() => {
+                    if (Date.now() - lastRan >= limit) {
+                        func.apply(this, args);
+                        lastRan = Date.now();
+                    }
+                }, limit - (Date.now() - lastRan));
+            }
+        };
     }
 
-    function initializeTooltips() {
-        $('[title]').tooltip({
-            placement: 'top',
-            trigger: 'hover'
+    function populateSelect(elementId, options, valueKey, textKey) {
+        const select = document.getElementById(elementId);
+        select.innerHTML = `<option value="">-- Select ${elementId.charAt(0).toUpperCase() + elementId.slice(1)} --</option>`;
+        options.forEach(option => {
+            select.innerHTML += `<option value="${option[valueKey]}">${option[textKey]}</option>`;
         });
     }
 });
-
-console.log('Grade Management JS Initialized');

@@ -113,6 +113,16 @@ function assignStudent($conn) {
     }
 
     try {
+        // Check if the student is already assigned to the section
+        $stmt = $conn->prepare("SELECT * FROM section_students WHERE section_id = ? AND student_id = ?");
+        $stmt->bind_param("ii", $sectionId, $studentId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Student is already assigned to this section']);
+            return;
+        }
+
         $stmt = $conn->prepare("INSERT INTO section_students (section_id, student_id) VALUES (?, ?)");
         $stmt->bind_param("ii", $sectionId, $studentId);
         
@@ -136,6 +146,16 @@ function assignSubject($conn) {
     }
 
     try {
+        // Check if the subject is already assigned to the section
+        $stmt = $conn->prepare("SELECT * FROM section_subjects WHERE section_id = ? AND subject_id = ?");
+        $stmt->bind_param("ii", $sectionId, $subjectId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Subject is already assigned to this section']);
+            return;
+        }
+
         $stmt = $conn->prepare("INSERT INTO section_subjects (section_id, subject_id) VALUES (?, ?)");
         $stmt->bind_param("ii", $sectionId, $subjectId);
         
@@ -158,6 +178,16 @@ function addSubject($conn) {
     }
 
     try {
+        // Check if subject already exists
+        $stmt = $conn->prepare("SELECT * FROM subjects WHERE subject_name = ?");
+        $stmt->bind_param("s", $subjectName);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Subject already exists']);
+            return;
+        }
+
         $stmt = $conn->prepare("INSERT INTO subjects (subject_name) VALUES (?)");
         $stmt->bind_param("s", $subjectName);
         
@@ -181,6 +211,16 @@ function editSubject($conn) {
     }
 
     try {
+        // Check if the new subject name already exists
+        $stmt = $conn->prepare("SELECT * FROM subjects WHERE subject_name = ? AND subject_id != ?");
+        $stmt->bind_param("si", $subjectName, $subjectId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Another subject with this name already exists']);
+            return;
+        }
+
         $stmt = $conn->prepare("UPDATE subjects SET subject_name = ? WHERE subject_id = ?");
         $stmt->bind_param("si", $subjectName, $subjectId);
         
@@ -203,16 +243,30 @@ function deleteSubject($conn) {
     }
 
     try {
+        // Start transaction
+        $conn->begin_transaction();
+
+        // Delete related records in section_subjects
+        $stmt = $conn->prepare("DELETE FROM section_subjects WHERE subject_id = ?");
+        $stmt->bind_param("i", $subjectId);
+        $stmt->execute();
+        error_log("Deleted section_subjects for subject ID: " . $subjectId);
+
+        // Delete the subject
         $stmt = $conn->prepare("DELETE FROM subjects WHERE subject_id = ?");
         $stmt->bind_param("i", $subjectId);
         
         if ($stmt->execute()) {
+            $conn->commit();
+            error_log("Successfully deleted subject with ID: " . $subjectId);
             echo json_encode(['status' => 'success', 'message' => 'Subject deleted successfully']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to delete subject: ' . $stmt->error]);
+            throw new Exception('Failed to delete subject: ' . $stmt->error);
         }
     } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        $conn->rollback();
+        error_log("Error deleting subject: " . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => 'Failed to delete subject: ' . $e->getMessage()]);
     }
 }
 
@@ -226,6 +280,16 @@ function removeStudent($conn) {
     }
 
     try {
+        // Check if the student is assigned to the section
+        $stmt = $conn->prepare("SELECT * FROM section_students WHERE section_id = ? AND student_id = ?");
+        $stmt->bind_param("ii", $sectionId, $studentId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows === 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Student is not assigned to this section']);
+            return;
+        }
+
         $stmt = $conn->prepare("DELETE FROM section_students WHERE section_id = ? AND student_id = ?");
         $stmt->bind_param("ii", $sectionId, $studentId);
         
@@ -249,6 +313,16 @@ function removeSubject($conn) {
     }
 
     try {
+        // Check if the subject is assigned to the section
+        $stmt = $conn->prepare("SELECT * FROM section_subjects WHERE section_id = ? AND subject_id = ?");
+        $stmt->bind_param("ii", $sectionId, $subjectId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows === 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Subject is not assigned to this section']);
+            return;
+        }
+
         $stmt = $conn->prepare("DELETE FROM section_subjects WHERE section_id = ? AND subject_id = ?");
         $stmt->bind_param("ii", $sectionId, $subjectId);
         
@@ -375,7 +449,7 @@ function searchStudents($conn) {
     }
 
     try {
-        $searchTerm = "%$searchTerm%";
+        $searchTerm = "%" . $searchTerm . "%";
         $stmt = $conn->prepare("SELECT * FROM students WHERE first_name LIKE ? OR last_name LIKE ?");
         $stmt->bind_param("ss", $searchTerm, $searchTerm);
         $stmt->execute();
@@ -403,15 +477,20 @@ function deleteSection($conn) {
         // Start transaction
         $conn->begin_transaction();
 
+        // Log the deletion attempt
+        error_log("Attempting to delete section with ID: " . $sectionId);
+
         // Delete related records in section_students
         $stmt = $conn->prepare("DELETE FROM section_students WHERE section_id = ?");
         $stmt->bind_param("i", $sectionId);
         $stmt->execute();
+        error_log("Deleted section_students for section ID: " . $sectionId);
 
         // Delete related records in section_subjects
         $stmt = $conn->prepare("DELETE FROM section_subjects WHERE section_id = ?");
         $stmt->bind_param("i", $sectionId);
         $stmt->execute();
+        error_log("Deleted section_subjects for section ID: " . $sectionId);
 
         // Delete the section
         $stmt = $conn->prepare("DELETE FROM sections WHERE section_id = ?");
@@ -419,12 +498,15 @@ function deleteSection($conn) {
         
         if ($stmt->execute()) {
             $conn->commit();
+            error_log("Successfully deleted section with ID: " . $sectionId);
             echo json_encode(['status' => 'success', 'message' => 'Section deleted successfully']);
         } else {
-            throw new Exception('Failed to delete section');
+            throw new Exception('Failed to delete section: ' . $stmt->error);
         }
     } catch (Exception $e) {
         $conn->rollback();
+        error_log("Error deleting section: " . $e->getMessage());
         echo json_encode(['status' => 'error', 'message' => 'Failed to delete section: ' . $e->getMessage()]);
     }
 }
+?>

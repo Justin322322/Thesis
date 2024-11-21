@@ -1,283 +1,355 @@
 <?php
-// File: C:\xampp\htdocs\AcadMeter\server\controllers\class_management_functions.php
+// File: server/controllers/class_management_functions.php
 
-// Function to assign a student to a section
+function createSection($conn, $instructorId) {
+    $sectionName = $_POST['section_name'] ?? '';
+    $schoolYear = $_POST['school_year'] ?? '';
+
+    if (empty($sectionName) || empty($schoolYear)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section name and school year are required.']);
+        return;
+    }
+
+    $stmt = $conn->prepare("INSERT INTO sections (section_name, instructor_id, school_year) VALUES (?, ?, ?)");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
+    }
+
+    $stmt->bind_param("sis", $sectionName, $instructorId, $schoolYear);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Section created successfully.']);
+    } else {
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to create section.']);
+    }
+    $stmt->close();
+}
+
 function assignStudents($conn) {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
+    $sectionId = $_POST['section_id'] ?? '';
+    $studentIds = $_POST['student_ids'] ?? [];
+
+    if (empty($sectionId) || empty($studentIds)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section ID and student IDs are required.']);
+        return;
     }
 
-    // Retrieve and sanitize input
-    $section_id = isset($_POST['section_id']) ? intval($_POST['section_id']) : 0;
-    $student_id = isset($_POST['student_id']) ? intval($_POST['student_id']) : 0;
-
-    if ($section_id <= 0 || $student_id <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid section or student ID.']);
-        exit;
+    $stmt = $conn->prepare("INSERT INTO section_students (section_id, student_id) VALUES (?, ?)");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    // Assign student to section
-    $query = "UPDATE students SET section_id = ? WHERE student_id = ?";
-    if ($stmt = $conn->prepare($query)) {
-        $stmt->bind_param("ii", $section_id, $student_id);
-        if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'Student assigned to section successfully.']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to assign student: ' . $stmt->error]);
+    $conn->begin_transaction();
+    try {
+        foreach ($studentIds as $studentId) {
+            $stmt->bind_param("ii", $sectionId, $studentId);
+            $stmt->execute();
         }
-        $stmt->close();
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        $conn->commit();
+        echo json_encode(['status' => 'success', 'message' => 'Students assigned successfully.']);
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Error assigning students: " . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => 'Failed to assign students.']);
     }
+    $stmt->close();
 }
 
-// Function to assign a subject to a section
 function assignSubject($conn) {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
+    $sectionId = $_POST['section_id'] ?? '';
+    $subjectId = $_POST['subject_id'] ?? '';
+
+    if (empty($sectionId) || empty($subjectId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section ID and subject ID are required.']);
+        return;
     }
 
-    // Retrieve and sanitize input
-    $section_id = isset($_POST['section_id']) ? intval($_POST['section_id']) : 0;
-    $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
-
-    if ($section_id <= 0 || $subject_id <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid section or subject ID.']);
-        exit;
+    $stmt = $conn->prepare("INSERT INTO section_subjects (section_id, subject_id) VALUES (?, ?)");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    // Assign subject to section
-    $query = "UPDATE sections SET subject_id = ? WHERE section_id = ?";
-    if ($stmt = $conn->prepare($query)) {
-        $stmt->bind_param("ii", $subject_id, $section_id);
-        if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'Subject assigned to section successfully.']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to assign subject: ' . $stmt->error]);
-        }
-        $stmt->close();
+    $stmt->bind_param("ii", $sectionId, $subjectId);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Subject assigned successfully.']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to assign subject.']);
     }
+    $stmt->close();
 }
 
-// Function to add a new subject
 function addSubject($conn) {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
+    $subjectName = $_POST['subject_name'] ?? '';
+
+    if (empty($subjectName)) {
+        echo json_encode(['status' => 'error', 'message' => 'Subject name is required.']);
+        return;
     }
 
-    // Retrieve and sanitize input
-    $subject_name = isset($_POST['subject_name']) ? trim($_POST['subject_name']) : '';
-
-    if (empty($subject_name)) {
-        echo json_encode(['status' => 'error', 'message' => 'Subject name cannot be empty.']);
-        exit;
+    $stmt = $conn->prepare("INSERT INTO subjects (subject_name) VALUES (?)");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    // Check if subject already exists
-    $check_query = "SELECT subject_id FROM subjects WHERE subject_name = ?";
-    if ($stmt = $conn->prepare($check_query)) {
-        $stmt->bind_param("s", $subject_name);
-        $stmt->execute();
-        $stmt->store_result();
-        if ($stmt->num_rows > 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Subject already exists.']);
-            $stmt->close();
-            exit;
-        }
-        $stmt->close();
+    $stmt->bind_param("s", $subjectName);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Subject added successfully.']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-        exit;
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to add subject.']);
     }
-
-    // Insert new subject
-    $insert_query = "INSERT INTO subjects (subject_name) VALUES (?)";
-    if ($stmt = $conn->prepare($insert_query)) {
-        $stmt->bind_param("s", $subject_name);
-        if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'Subject added successfully.']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to add subject: ' . $stmt->error]);
-        }
-        $stmt->close();
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-    }
+    $stmt->close();
 }
 
-// Function to edit an existing subject
 function editSubject($conn) {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
+    $subjectId = $_POST['subject_id'] ?? '';
+    $subjectName = $_POST['subject_name'] ?? '';
+
+    if (empty($subjectId) || empty($subjectName)) {
+        echo json_encode(['status' => 'error', 'message' => 'Subject ID and name are required.']);
+        return;
     }
 
-    // Retrieve and sanitize input
-    $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
-    $subject_name = isset($_POST['subject_name']) ? trim($_POST['subject_name']) : '';
-
-    if ($subject_id <= 0 || empty($subject_name)) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid subject ID or name.']);
-        exit;
+    $stmt = $conn->prepare("UPDATE subjects SET subject_name = ? WHERE subject_id = ?");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    // Update subject
-    $update_query = "UPDATE subjects SET subject_name = ? WHERE subject_id = ?";
-    if ($stmt = $conn->prepare($update_query)) {
-        $stmt->bind_param("si", $subject_name, $subject_id);
-        if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'Subject updated successfully.']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to update subject: ' . $stmt->error]);
-        }
-        $stmt->close();
+    $stmt->bind_param("si", $subjectName, $subjectId);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Subject updated successfully.']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to update subject.']);
     }
+    $stmt->close();
 }
 
-// Function to delete a subject
 function deleteSubject($conn) {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
+    $subjectId = $_POST['subject_id'] ?? '';
+
+    if (empty($subjectId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Subject ID is required.']);
+        return;
     }
 
-    // Retrieve and sanitize input
-    $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
-
-    if ($subject_id <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid subject ID.']);
-        exit;
+    $stmt = $conn->prepare("DELETE FROM subjects WHERE subject_id = ?");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    // Check if the subject is assigned to any section
-    $check_query = "SELECT section_id FROM sections WHERE subject_id = ?";
-    if ($stmt = $conn->prepare($check_query)) {
-        $stmt->bind_param("i", $subject_id);
-        $stmt->execute();
-        $stmt->store_result();
-        if ($stmt->num_rows > 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Cannot delete subject assigned to a section.']);
-            $stmt->close();
-            exit;
-        }
-        $stmt->close();
+    $stmt->bind_param("i", $subjectId);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Subject deleted successfully.']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-        exit;
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to delete subject.']);
     }
-
-    // Delete the subject
-    $delete_query = "DELETE FROM subjects WHERE subject_id = ?";
-    if ($stmt = $conn->prepare($delete_query)) {
-        $stmt->bind_param("i", $subject_id);
-        if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'Subject deleted successfully.']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to delete subject: ' . $stmt->error]);
-        }
-        $stmt->close();
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-    }
+    $stmt->close();
 }
 
-// Function to fetch all subjects
 function fetchSubjects($conn) {
-    $query = "SELECT subject_id, subject_name FROM subjects ORDER BY subject_id ASC";
-    if ($stmt = $conn->prepare($query)) {
-        if ($stmt->execute()) {
-            $result = $stmt->get_result();
-            $subjects = $result->fetch_all(MYSQLI_ASSOC);
-            $stmt->close();
-            echo json_encode(['status' => 'success', 'subjects' => $subjects]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to fetch subjects: ' . $stmt->error]);
-            $stmt->close();
-        }
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+    $stmt = $conn->prepare("SELECT subject_id, subject_name FROM subjects");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
+
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        $subjects = $result->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['status' => 'success', 'subjects' => $subjects]);
+    } else {
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch subjects.']);
+    }
+    $stmt->close();
 }
 
-// Function to fetch all sections
-function fetchSections($conn) {
-    $query = "SELECT sections.section_id, sections.section_name, subjects.subject_name 
-              FROM sections 
-              LEFT JOIN subjects ON sections.subject_id = subjects.subject_id 
-              ORDER BY sections.section_id ASC";
-    if ($stmt = $conn->prepare($query)) {
-        if ($stmt->execute()) {
-            $result = $stmt->get_result();
-            $sections = $result->fetch_all(MYSQLI_ASSOC);
-            $stmt->close();
-            echo json_encode(['status' => 'success', 'sections' => $sections]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to fetch sections: ' . $stmt->error]);
-            $stmt->close();
-        }
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+function fetchSections($conn, $instructorId) {
+    $stmt = $conn->prepare("
+        SELECT s.section_id, s.section_name, s.school_year,
+               GROUP_CONCAT(DISTINCT sub.subject_name) AS subjects,
+               COUNT(DISTINCT ss.student_id) AS student_count,
+               GROUP_CONCAT(DISTINCT CONCAT(st.first_name, ' ', st.last_name, ':', st.student_id)) AS students
+        FROM sections s
+        LEFT JOIN section_subjects ssub ON s.section_id = ssub.section_id
+        LEFT JOIN subjects sub ON ssub.subject_id = sub.subject_id
+        LEFT JOIN section_students ss ON s.section_id = ss.section_id
+        LEFT JOIN students st ON ss.student_id = st.student_id
+        WHERE s.instructor_id = ?
+        GROUP BY s.section_id
+    ");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
+
+    $stmt->bind_param("i", $instructorId);
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        $sections = $result->fetch_all(MYSQLI_ASSOC);
+        
+        // Process the results
+        foreach ($sections as &$section) {
+            $section['subjects'] = $section['subjects'] ? explode(',', $section['subjects']) : [];
+            $students = [];
+            if ($section['students']) {
+                foreach (explode(',', $section['students']) as $student) {
+                    list($name, $id) = explode(':', $student);
+                    $students[] = ['student_name' => $name, 'student_id' => $id];
+                }
+            }
+            $section['students'] = $students;
+        }
+        
+        echo json_encode(['status' => 'success', 'sections' => $sections]);
+    } else {
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch sections.']);
+    }
+    $stmt->close();
 }
 
-// Function to create a new section
-function createSection($conn) {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
+function getClassRoster($conn) {
+    $sectionId = $_POST['section_id'] ?? '';
+
+    if (empty($sectionId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section ID is required.']);
+        return;
     }
 
-    // Retrieve and sanitize input
-    $section_name = isset($_POST['section_name']) ? trim($_POST['section_name']) : '';
-    $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : null; // Optional
-
-    if (empty($section_name)) {
-        echo json_encode(['status' => 'error', 'message' => 'Section name cannot be empty.']);
-        exit;
+    $stmt = $conn->prepare("
+        SELECT s.student_id, CONCAT(s.first_name, ' ', s.last_name) AS student_name
+        FROM students s
+        JOIN section_students ss ON s.student_id = ss.student_id
+        WHERE ss.section_id = ?
+    ");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    // Insert new section
-    if ($subject_id > 0) {
-        $query = "INSERT INTO sections (section_name, subject_id, instructor_id) VALUES (?, ?, ?)";
+    $stmt->bind_param("i", $sectionId);
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        $students = $result->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['status' => 'success', 'students' => $students]);
     } else {
-        $query = "INSERT INTO sections (section_name, instructor_id) VALUES (?, ?)";
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch class roster.']);
+    }
+    $stmt->close();
+}
+
+function removeSubjectFromSection($conn) {
+    $sectionId = $_POST['section_id'] ?? '';
+    $subjectId = $_POST['subject_id'] ?? '';
+
+    if (empty($sectionId) || empty($subjectId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section ID and subject ID are required.']);
+        return;
     }
 
-    // Assuming instructor_id is stored in the session
-    $instructor_id = isset($_SESSION['instructor_id']) ? intval($_SESSION['instructor_id']) : 0;
-    if ($instructor_id <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid instructor ID.']);
-        exit;
+    $stmt = $conn->prepare("DELETE FROM section_subjects WHERE section_id = ? AND subject_id = ?");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
     }
 
-    if ($stmt = $conn->prepare($query)) {
-        if ($subject_id > 0) {
-            $stmt->bind_param("sii", $section_name, $subject_id, $instructor_id);
-        } else {
-            $stmt->bind_param("si", $section_name, $instructor_id);
-        }
+    $stmt->bind_param("ii", $sectionId, $subjectId);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Subject removed from section successfully.']);
+    } else {
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to remove subject from section.']);
+    }
+    $stmt->close();
+}
 
-        if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'Section created successfully.']);
+function removeStudentFromSection($conn) {
+    $sectionId = $_POST['section_id'] ?? '';
+    $studentId = $_POST['student_id'] ?? '';
+
+    if (empty($sectionId) || empty($studentId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section ID and student ID are required.']);
+        return;
+    }
+
+    $stmt = $conn->prepare("DELETE FROM section_students WHERE section_id = ? AND student_id = ?");
+    if (!$stmt) {
+        error_log("Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error.']);
+        return;
+    }
+
+    $stmt->bind_param("ii", $sectionId, $studentId);
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Student removed from section successfully.']);
+    } else {
+        error_log("Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to remove student from section.']);
+    }
+    $stmt->close();
+}
+
+function deleteSection($conn, $instructorId) {
+    $sectionId = $_POST['section_id'] ?? '';
+
+    if (empty($sectionId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Section ID is required.']);
+        return;
+    }
+
+    // Start transaction
+    $conn->begin_transaction();
+
+    try {
+        // Delete section_students entries
+        $stmt = $conn->prepare("DELETE FROM section_students WHERE section_id = ?");
+        $stmt->bind_param("i", $sectionId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Delete section_subjects entries
+        $stmt = $conn->prepare("DELETE FROM section_subjects WHERE section_id = ?");
+        $stmt->bind_param("i", $sectionId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Delete the section
+        $stmt = $conn->prepare("DELETE FROM sections WHERE section_id = ? AND instructor_id = ?");
+        $stmt->bind_param("ii", $sectionId, $instructorId);
+        $stmt->execute();
+        
+        if ($stmt->affected_rows > 0) {
+            $conn->commit();
+            echo json_encode(['status' => 'success', 'message' => 'Section deleted successfully.']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to create section: ' . $stmt->error]);
+            throw new Exception("No section found or you don't have permission to delete this section.");
         }
         $stmt->close();
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Error deleting section: " . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
 }
 ?>

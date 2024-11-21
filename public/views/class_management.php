@@ -1,6 +1,4 @@
 <?php
-// File: C:\xampp\htdocs\AcadMeter\public\views\class_management.php
-
 // Start the session at the very beginning
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -9,22 +7,50 @@ if (session_status() == PHP_SESSION_NONE) {
 // Include your database connection
 require_once __DIR__ . '/../../config/db_connection.php';
 
-// Check if the necessary variables are set
-$sections = isset($sections) ? $sections : [];
-$students = isset($students) ? $students : [];
-$subjects = isset($subjects) ? $subjects : [];
+// Check if the user is logged in and is an Instructor
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
+    header('Location: /AcadMeter/public/login.html');
+    exit();
+}
 
-// Fetch subjects if not already set
-if (empty($subjects)) {
-    try {
-        $stmt = $conn->prepare("SELECT * FROM subjects ORDER BY subject_name");
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $subjects = $result->fetch_all(MYSQLI_ASSOC);
-    } catch (Exception $e) {
-        error_log("Error fetching subjects: " . $e->getMessage());
-        $error_message = "An error occurred while fetching subjects. Please try again later.";
-    }
+// Initialize variables
+$sections = [];
+$students = [];
+$subjects = [];
+$error_message = '';
+
+// Fetch subjects
+try {
+    $stmt = $conn->prepare("SELECT * FROM subjects ORDER BY subject_name");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $subjects = $result->fetch_all(MYSQLI_ASSOC);
+} catch (Exception $e) {
+    error_log("Error fetching subjects: " . $e->getMessage());
+    $error_message = "An error occurred while fetching subjects. Please try again later.";
+}
+
+// Fetch sections
+try {
+    $stmt = $conn->prepare("SELECT * FROM sections WHERE instructor_id = ? ORDER BY section_name");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $sections = $result->fetch_all(MYSQLI_ASSOC);
+} catch (Exception $e) {
+    error_log("Error fetching sections: " . $e->getMessage());
+    $error_message = "An error occurred while fetching sections. Please try again later.";
+}
+
+// Fetch students
+try {
+    $stmt = $conn->prepare("SELECT * FROM students ORDER BY last_name, first_name");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $students = $result->fetch_all(MYSQLI_ASSOC);
+} catch (Exception $e) {
+    error_log("Error fetching students: " . $e->getMessage());
+    $error_message = "An error occurred while fetching students. Please try again later.";
 }
 
 // Fetch class roster data
@@ -46,20 +72,18 @@ function getClassRoster($conn) {
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $sectionName = $row['section_name'];
-                if (!isset($roster[$sectionName])) {
-                    $roster[$sectionName] = ['section_id' => $row['section_id'], 'subjects' => [], 'students' => []];
-                }
-                if ($row['subject_name'] && !in_array(['name' => $row['subject_name'], 'id' => $row['subject_id']], $roster[$sectionName]['subjects'])) {
-                    $roster[$sectionName]['subjects'][] = ['name' => $row['subject_name'], 'id' => $row['subject_id']];
-                }
-                if ($row['first_name'] && $row['last_name']) {
-                    $studentName = $row['first_name'] . ' ' . $row['last_name'];
-                    if (!in_array(['name' => $studentName, 'id' => $row['student_id']], $roster[$sectionName]['students'])) {
-                        $roster[$sectionName]['students'][] = ['name' => $studentName, 'id' => $row['student_id']];
-                    }
+        while ($row = $result->fetch_assoc()) {
+            $sectionName = $row['section_name'];
+            if (!isset($roster[$sectionName])) {
+                $roster[$sectionName] = ['section_id' => $row['section_id'], 'subjects' => [], 'students' => []];
+            }
+            if ($row['subject_name'] && !in_array(['name' => $row['subject_name'], 'id' => $row['subject_id']], $roster[$sectionName]['subjects'])) {
+                $roster[$sectionName]['subjects'][] = ['name' => $row['subject_name'], 'id' => $row['subject_id']];
+            }
+            if ($row['first_name'] && $row['last_name']) {
+                $studentName = $row['first_name'] . ' ' . $row['last_name'];
+                if (!in_array(['name' => $studentName, 'id' => $row['student_id']], $roster[$sectionName]['students'])) {
+                    $roster[$sectionName]['students'][] = ['name' => $studentName, 'id' => $row['student_id']];
                 }
             }
         }
@@ -77,16 +101,16 @@ $classRoster = getClassRoster($conn);
 if ($classRoster === false) {
     $error_message = "An error occurred while fetching the class roster. Please try again later.";
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Class Management</title>
+    <title>Class Management - AcadMeter</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="/AcadMeter/public/assets/css/styles.css">
+    <link rel="stylesheet" href="/AcadMeter/public/assets/css/class_management.css">
     <style>
         .tab-content {
             display: none;
@@ -99,9 +123,28 @@ if ($classRoster === false) {
         }
         .tab-btn {
             margin-right: 10px;
+            margin-bottom: 10px;
         }
         .tab-btn.active {
             background-color: #007bff;
+            color: white;
+        }
+        @media (max-width: 767px) {
+            .section-roster .row {
+                flex-direction: column;
+            }
+            .section-roster .col-md-6 {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+        .modal-success .modal-header {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .modal-danger .modal-header {
+            background-color: #dc3545;
             color: white;
         }
     </style>
@@ -111,9 +154,9 @@ if ($classRoster === false) {
         <h3>Class Management</h3>
 
         <!-- Alert Placeholder -->
-        <div id="classManagementAlert"></div>
+        <div id="classManagementAlert" class="alert" style="display: none;"></div>
 
-        <?php if (isset($error_message)): ?>
+        <?php if ($error_message): ?>
             <div class="alert alert-danger" role="alert">
                 <?= htmlspecialchars($error_message) ?>
             </div>
@@ -131,10 +174,13 @@ if ($classRoster === false) {
             <div class="tab-content active" id="sections-tab">
                 <h4 class="section-title">Add New Section</h4>
                 <form id="addSectionForm">
-                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="newSectionName">Section Name</label>
                         <input type="text" class="form-control" id="newSectionName" name="section_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newSchoolYear">School Year</label>
+                        <input type="text" class="form-control" id="newSchoolYear" name="school_year" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Add Section</button>
                 </form>
@@ -144,7 +190,6 @@ if ($classRoster === false) {
             <div class="tab-content" id="students-tab">
                 <h4 class="section-title">Assign Student to Section</h4>
                 <form id="assignStudentForm">
-                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="studentSelect">Select Student</label>
                         <select class="form-control" id="studentSelect" name="student_id" required>
@@ -175,7 +220,6 @@ if ($classRoster === false) {
             <div class="tab-content" id="subjects-tab">
                 <h4 class="section-title">Manage Subjects</h4>
                 <form id="addSubjectForm" class="mb-4">
-                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="newSubjectName">Add New Subject</label>
                         <input type="text" class="form-control" id="newSubjectName" name="subject_name" required>
@@ -185,7 +229,6 @@ if ($classRoster === false) {
 
                 <h5 class="mb-3">Assign Subject to Section</h5>
                 <form id="assignSubjectForm" class="mb-4">
-                    <!-- CSRF Token Removed -->
                     <div class="form-group">
                         <label for="subjectSelect">Select Subject</label>
                         <select class="form-control" id="subjectSelect" name="subject_id" required>
@@ -227,10 +270,10 @@ if ($classRoster === false) {
                                     <td><?= htmlspecialchars($subject['subject_id']) ?></td>
                                     <td id="subjectName<?= htmlspecialchars($subject['subject_id']) ?>"><?= htmlspecialchars($subject['subject_name']) ?></td>
                                     <td>
-                                        <button class="btn btn-sm edit-subject" data-subject-id="<?= htmlspecialchars($subject['subject_id']) ?>" data-subject-name="<?= htmlspecialchars($subject['subject_name']) ?>">
+                                        <button class="btn btn-sm btn-primary edit-subject" data-subject-id="<?= htmlspecialchars($subject['subject_id']) ?>" data-subject-name="<?= htmlspecialchars($subject['subject_name']) ?>">
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger delete-subject" data-subject-id="<?= htmlspecialchars($subject['subject_id']) ?>" data-subject-name="<?= htmlspecialchars($subject['subject_name']) ?>">
+                                        <button class="btn btn-sm btn-danger delete-subject" data-subject-id="<?= htmlspecialchars($subject['subject_id']) ?>" data-subject-name="<?= htmlspecialchars($subject['subject_name']) ?>">
                                             <i class="fas fa-trash-alt"></i> Delete
                                         </button>
                                     </td>
@@ -245,7 +288,7 @@ if ($classRoster === false) {
             <div class="tab-content" id="roster-tab">
                 <h4 class="section-title">Class Roster</h4>
                 <div id="classRosterContainer">
-                    <?php if (isset($error_message)): ?>
+                    <?php if ($classRoster === false): ?>
                         <p class="text-danger"><?= htmlspecialchars($error_message) ?></p>
                     <?php elseif (empty($classRoster)): ?>
                         <p class="text-muted">No class roster data available.</p>
@@ -254,7 +297,7 @@ if ($classRoster === false) {
                             <div class="section-roster mb-4">
                                 <h4>
                                     <?= htmlspecialchars($sectionName) ?>
-                                    <button class="btn btn-sm btn-outline-danger float-right delete-section" data-section-id="<?= htmlspecialchars($data['section_id']) ?>" data-section-name="<?= htmlspecialchars($sectionName) ?>">
+                                    <button class="btn btn-sm btn-danger float-right delete-section" data-section-id="<?= htmlspecialchars($data['section_id']) ?>" data-section-name="<?= htmlspecialchars($sectionName) ?>">
                                         <i class="fas fa-trash-alt"></i> Delete Section
                                     </button>
                                 </h4>
@@ -268,8 +311,8 @@ if ($classRoster === false) {
                                                 <?php foreach ($data['subjects'] as $subject): ?>
                                                     <li class="list-group-item d-flex justify-content-between align-items-center">
                                                         <?= htmlspecialchars($subject['name']) ?>
-                                                        <button class="btn btn-sm btn-outline-danger remove-subject" data-section="<?= htmlspecialchars($sectionName) ?>" data-subject="<?= htmlspecialchars($subject['name']) ?>" data-subject-id="<?= htmlspecialchars($subject['id']) ?>" data-section-id="<?= htmlspecialchars($data['section_id']) ?>">
-                                                            <i class="fas fa-times"></i>
+                                                        <button class="btn btn-sm btn-outline-danger remove-subject" data-section-id="<?= htmlspecialchars($data['section_id']) ?>" data-subject-id="<?= htmlspecialchars($subject['id']) ?>">
+                                                            <i class="fas fa-times"></i> Remove
                                                         </button>
                                                     </li>
                                                 <?php endforeach; ?>
@@ -285,8 +328,8 @@ if ($classRoster === false) {
                                                 <?php foreach ($data['students'] as $student): ?>
                                                     <li class="list-group-item d-flex justify-content-between align-items-center">
                                                         <?= htmlspecialchars($student['name']) ?>
-                                                        <button class="btn btn-sm btn-outline-danger remove-student" data-section="<?= htmlspecialchars($sectionName) ?>" data-student="<?= htmlspecialchars($student['name']) ?>" data-student-id="<?= htmlspecialchars($student['id']) ?>" data-section-id="<?= htmlspecialchars($data['section_id']) ?>">
-                                                            <i class="fas fa-times"></i>
+                                                        <button class="btn btn-sm btn-outline-danger remove-student" data-section-id="<?= htmlspecialchars($data['section_id']) ?>" data-student-id="<?= htmlspecialchars($student['id']) ?>">
+                                                            <i class="fas fa-times"></i> Remove
                                                         </button>
                                                     </li>
                                                 <?php endforeach; ?>
@@ -314,7 +357,6 @@ if ($classRoster === false) {
                 </div>
                 <div class="modal-body">
                     <form id="editSubjectFormModal">
-                        <!-- CSRF Token Removed -->
                         <input type="hidden" id="editSubjectId" name="subject_id">
                         <div class="form-group">
                             <label for="editSubjectName">Subject Name</label>
@@ -328,8 +370,7 @@ if ($classRoster === false) {
     </div>
 
     <!-- Delete Subject Modal -->
-    <div class="modal fade" id="deleteSubjectModal" tabindex="-1" role="dialog"
-         aria-labelledby="deleteSubjectModalLabel" aria-hidden="true">
+    <div class="modal fade" id="deleteSubjectModal" tabindex="-1" role="dialog" aria-labelledby="deleteSubjectModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -340,7 +381,6 @@ if ($classRoster === false) {
                 </div>
                 <div class="modal-body">
                     <form id="deleteSubjectFormModal">
-                        <!-- CSRF Token Removed -->
                         <input type="hidden" id="deleteSubjectId" name="subject_id">
                         <p>Are you sure you want to delete the subject "<strong id="deleteSubjectName"></strong>"?</p>
                         <button type="submit" class="btn btn-danger">Yes, Delete</button>
@@ -352,8 +392,7 @@ if ($classRoster === false) {
     </div>
 
     <!-- Delete Section Modal -->
-    <div class="modal fade" id="deleteSectionModal" tabindex="-1" role="dialog"
-         aria-labelledby="deleteSectionModalLabel" aria-hidden="true">
+    <div class="modal fade" id="deleteSectionModal" tabindex="-1" role="dialog" aria-labelledby="deleteSectionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -364,13 +403,49 @@ if ($classRoster === false) {
                 </div>
                 <div class="modal-body">
                     <form id="deleteSectionFormModal">
-                        <!-- CSRF Token Removed -->
                         <input type="hidden" id="deleteSectionId" name="section_id">
                         <p>Are you sure you want to delete the section "<strong id="deleteSectionName"></strong>"? This action cannot be undone and will remove all associated students and subjects.</p>
                         <button type="submit" class="btn btn-danger">Yes, Delete</button>
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     </form>
                     <div id="deleteSectionAlert" class="alert alert-danger mt-3 d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Subject Modal -->
+    <div class="modal fade" id="removeSubjectModal" tabindex="-1" role="dialog" aria-labelledby="removeSubjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="removeSubjectModalLabel">Remove Subject</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to remove this subject from the section?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmRemoveSubject">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div class="modal fade" id="messageModal" tabindex="-1" role="dialog" aria-labelledby="messageModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalLabel"></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="messageModalBody">
                 </div>
             </div>
         </div>

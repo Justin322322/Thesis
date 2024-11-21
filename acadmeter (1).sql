@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 20, 2024 at 08:58 AM
+-- Generation Time: Nov 21, 2024 at 12:23 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -35,13 +35,6 @@ CREATE TABLE `action_logs` (
   `action_timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `action_logs`
---
-
-INSERT INTO `action_logs` (`log_id`, `user_id`, `action_type`, `description`, `action_timestamp`) VALUES
-(4, 40, 'Account Approval', 'Approved action taken for User ID 40.', '2024-11-11 16:27:23');
-
 -- --------------------------------------------------------
 
 --
@@ -55,13 +48,6 @@ CREATE TABLE `activity_logs` (
   `activity_timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `activity_logs`
---
-
-INSERT INTO `activity_logs` (`log_id`, `user_id`, `activity_type`, `activity_timestamp`) VALUES
-(3, 40, '', '2024-11-11 16:25:35');
-
 -- --------------------------------------------------------
 
 --
@@ -72,14 +58,6 @@ CREATE TABLE `activity_types` (
   `activity_type_id` int(11) NOT NULL,
   `name` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `activity_types`
---
-
-INSERT INTO `activity_types` (`activity_type_id`, `name`) VALUES
-(1, 'Login'),
-(2, 'Logout');
 
 -- --------------------------------------------------------
 
@@ -93,6 +71,13 @@ CREATE TABLE `admins` (
   `employee_number` varchar(20) NOT NULL,
   `position` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `admins`
+--
+
+INSERT INTO `admins` (`admin_id`, `user_id`, `employee_number`, `position`) VALUES
+(1, 29, 'ADMIN001', 'System Administrator');
 
 -- --------------------------------------------------------
 
@@ -174,18 +159,6 @@ CREATE TABLE `grades` (
   `locked` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `grades`
---
-
-INSERT INTO `grades` (`grade_id`, `student_id`, `section_id`, `subject_id`, `quarter`, `component_id`, `grade`, `subcategories`, `remarks`, `academic_year`, `created_at`, `updated_at`, `locked`) VALUES
-(148, 1, 15, 44, 1, 1, 27.00, '[{\"name\":\"Quizzes\",\"description\":\"Short tests to assess understanding of topics.\",\"grade\":27}]', 'Failed', '1111-1111', '2024-11-20 06:50:10', '2024-11-20 07:25:20', 0),
-(149, 1, 15, 44, 1, 2, 7.00, '[{\"name\":\"Projects\",\"description\":\"Group or individual projects involving creativity and research.\",\"grade\":7}]', 'Failed', '1111-1111', '2024-11-20 06:50:10', '2024-11-20 07:14:52', 0),
-(150, 1, 15, 44, 1, 3, 7.00, '[{\"name\":\"Quarterly Exam\",\"description\":\"Comprehensive test summarizing student performance.\",\"grade\":7}]', 'Failed', '1111-1111', '2024-11-20 06:50:10', '2024-11-20 07:14:52', 0),
-(151, 3, 15, 44, 1, 1, 0.00, '[{\"name\":\"Quizzes\",\"description\":\"Short tests to assess understanding of topics.\",\"grade\":0}]', 'Failed', '1111-1111', '2024-11-20 06:50:10', '2024-11-20 07:25:20', 0),
-(161, 3, 15, 44, 1, 2, 7.00, '[{\"name\":\"Projects\",\"description\":\"Group or individual projects involving creativity and research.\",\"grade\":7}]', 'Failed', '1111-1111', '2024-11-20 07:04:16', '2024-11-20 07:14:52', 0),
-(162, 3, 15, 44, 1, 3, 77.00, '[{\"name\":\"Quarterly Exam\",\"description\":\"Comprehensive test summarizing student performance.\",\"grade\":77}]', 'Passed', '1111-1111', '2024-11-20 07:04:16', '2024-11-20 07:14:52', 0);
-
 -- --------------------------------------------------------
 
 --
@@ -197,15 +170,6 @@ CREATE TABLE `grade_components` (
   `component_name` varchar(50) NOT NULL,
   `weight` decimal(5,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `grade_components`
---
-
-INSERT INTO `grade_components` (`component_id`, `component_name`, `weight`) VALUES
-(1, 'written_works', 30.00),
-(2, 'performance_tasks', 50.00),
-(3, 'quarterly_assessment', 20.00);
 
 -- --------------------------------------------------------
 
@@ -253,7 +217,7 @@ CREATE TABLE `instructors` (
 --
 
 INSERT INTO `instructors` (`instructor_id`, `user_id`, `employee_number`) VALUES
-(2, 40, 'EMP-0040');
+(1, 40, 'EMP-0040');
 
 -- --------------------------------------------------------
 
@@ -269,14 +233,6 @@ CREATE TABLE `notifications` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_read` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `notifications`
---
-
-INSERT INTO `notifications` (`notification_id`, `user_id`, `message`, `link`, `created_at`, `is_read`) VALUES
-(3, 1, 'Your class schedule has been updated.', '/AcadMeter/public/views/class_management.php', '2024-11-18 14:36:41', 0),
-(4, 1, 'New feedback received from student John Doe.', '/AcadMeter/public/views/feedback.php', '2024-11-18 14:36:41', 0);
 
 -- --------------------------------------------------------
 
@@ -347,7 +303,8 @@ CREATE TABLE `sections` (
 --
 
 INSERT INTO `sections` (`section_id`, `section_name`, `subject_id`, `instructor_id`, `school_year`) VALUES
-(15, 'Mango', NULL, 2, '2024-2025');
+(20, 'Section 1', NULL, 40, '2024-2025'),
+(21, 'Kalabasa', NULL, 40, '2024-2025');
 
 -- --------------------------------------------------------
 
@@ -365,8 +322,10 @@ CREATE TABLE `section_students` (
 --
 
 INSERT INTO `section_students` (`section_id`, `student_id`) VALUES
-(15, 1),
-(15, 3);
+(15, 3),
+(15, 4),
+(20, 3),
+(20, 4);
 
 -- --------------------------------------------------------
 
@@ -384,8 +343,8 @@ CREATE TABLE `section_subjects` (
 --
 
 INSERT INTO `section_subjects` (`section_id`, `subject_id`) VALUES
-(15, 44),
-(15, 66);
+(20, 13),
+(20, 14);
 
 -- --------------------------------------------------------
 
@@ -405,12 +364,8 @@ CREATE TABLE `students` (
 --
 
 INSERT INTO `students` (`student_id`, `user_id`, `first_name`, `last_name`) VALUES
-(1, 41, 'John', 'Doe'),
-(2, 42, 'Jane', 'Smith'),
-(3, 43, 'Alice', 'Johnson'),
-(4, 50, 'John', 'Doe'),
-(5, 51, 'Jane', 'Smith'),
-(6, 52, 'Alice', 'Johnson');
+(3, 41, 'Naruto', 'Uzumaki'),
+(4, 42, 'Monkey D.', 'Luffy');
 
 -- --------------------------------------------------------
 
@@ -447,9 +402,9 @@ CREATE TABLE `subjects` (
 --
 
 INSERT INTO `subjects` (`subject_id`, `subject_name`, `section_id`) VALUES
-(44, 'Science', NULL),
-(66, 'Math', NULL),
-(68, 'Mathematics', NULL);
+(5, 'Science', NULL),
+(13, 'Mathematics', NULL),
+(14, 'History', NULL);
 
 -- --------------------------------------------------------
 
@@ -495,14 +450,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `username`, `first_name`, `last_name`, `password`, `email`, `user_type`, `status`, `created_at`, `verification_code`, `verified`, `reset_token`, `reset_token_expiry`, `dob`, `sex`, `verification_timestamp`) VALUES
-(29, 'admin', 'Admin', 'User', '$2y$10$IaGhcvGNJYoX0NjaatqsaOvoN0pXGBwb4pr5IXSa3871730PbZDmi', 'admin@example.com', 'Admin', 'approved', '2024-11-08 06:50:13', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
-(40, 'Justin', 'Justin', 'Sibonga', '$2y$10$QaSfNlXj/1UG5Er9FNgvv.tMsrorDmKYyDvu9Ih5rpWwfi08esMXO', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-11 16:25:12', 'c963dac56f64646f582bc5f3f3b1acc7', 1, NULL, NULL, '1996-02-02', 'Male', NULL),
-(41, 'john_doe', 'John', 'Doe', '$2y$10$hashedpassword1', 'john.doe@example.com', 'Student', 'approved', '2024-11-18 11:33:07', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
-(42, 'jane_smith', 'Jane', 'Smith', '$2y$10$hashedpassword2', 'jane.smith@example.com', 'Student', 'approved', '2024-11-18 11:33:07', NULL, 1, NULL, NULL, NULL, 'Female', NULL),
-(43, 'alice_johnson', 'Alice', 'Johnson', '$2y$10$hashedpassword3', 'alice.johnson@example.com', 'Student', 'approved', '2024-11-18 11:33:07', NULL, 1, NULL, NULL, NULL, 'Female', NULL),
-(50, 'john_doe', 'John', 'Doe', '$2y$10$hashedpassword1', 'john.doe+1@example.com', 'Student', 'approved', '2024-11-18 11:34:08', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
-(51, 'jane_smith', 'Jane', 'Smith', '$2y$10$hashedpassword2', 'jane.smith+1@example.com', 'Student', 'approved', '2024-11-18 11:34:08', NULL, 1, NULL, NULL, NULL, 'Female', NULL),
-(52, 'alice_johnson', 'Alice', 'Johnson', '$2y$10$hashedpassword3', 'alice.johnson+1@example.com', 'Student', 'approved', '2024-11-18 11:34:08', NULL, 1, NULL, NULL, NULL, 'Female', NULL);
+(29, 'admin', 'Admin', 'User', '$2y$10$IaGhcvGNJYoX0NjaatqsaOvoN0pXGBwb4pr5IXSa3871730PbZDmi', 'admin@example.com', 'Admin', 'approved', '2024-11-21 06:31:35', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
+(40, 'Justin', 'Justin', 'Sibonga', '$2y$10$QaSfNlXj/1UG5Er9FNgvv.tMsrorDmKYyDvu9Ih5rpWwfi08esMXO', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-21 06:31:35', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
+(41, 'naruto_uzumaki', 'Naruto', 'Uzumaki', '$2y$10$dummyhashedpassword1', 'naruto.uzumaki@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL),
+(42, 'monkey_luffy', 'Monkey D.', 'Luffy', '$2y$10$dummyhashedpassword2', 'monkey.luffy@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL);
 
 -- --------------------------------------------------------
 
@@ -690,7 +641,6 @@ ALTER TABLE `reports`
 ALTER TABLE `sections`
   ADD PRIMARY KEY (`section_id`),
   ADD UNIQUE KEY `section_name` (`section_name`),
-  ADD UNIQUE KEY `section_name_2` (`section_name`),
   ADD KEY `subject_id` (`subject_id`),
   ADD KEY `instructor_id` (`instructor_id`);
 
@@ -745,8 +695,7 @@ ALTER TABLE `teacher_evaluations`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD UNIQUE KEY `email_2` (`email`);
+  ADD UNIQUE KEY `email` (`email`);
 
 --
 -- Indexes for table `user_approval_logs`
@@ -764,19 +713,19 @@ ALTER TABLE `user_approval_logs`
 -- AUTO_INCREMENT for table `action_logs`
 --
 ALTER TABLE `action_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `activity_types`
 --
 ALTER TABLE `activity_types`
-  MODIFY `activity_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `activity_type_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `admins`
@@ -794,7 +743,7 @@ ALTER TABLE `attendance`
 -- AUTO_INCREMENT for table `class_rankings`
 --
 ALTER TABLE `class_rankings`
-  MODIFY `ranking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `ranking_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `deleted_users_history`
@@ -806,19 +755,19 @@ ALTER TABLE `deleted_users_history`
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `feedback_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `feedback_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `grades`
 --
 ALTER TABLE `grades`
-  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=183;
+  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `grade_components`
 --
 ALTER TABLE `grade_components`
-  MODIFY `component_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `component_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `grade_subcategories`
@@ -836,13 +785,13 @@ ALTER TABLE `grading_formulas`
 -- AUTO_INCREMENT for table `instructors`
 --
 ALTER TABLE `instructors`
-  MODIFY `instructor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `instructor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `performance_predictions`
@@ -866,13 +815,13 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
-  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `student_risk`
@@ -884,7 +833,7 @@ ALTER TABLE `student_risk`
 -- AUTO_INCREMENT for table `subjects`
 --
 ALTER TABLE `subjects`
-  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
+  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `teacher_evaluations`
@@ -896,13 +845,13 @@ ALTER TABLE `teacher_evaluations`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `user_approval_logs`
 --
 ALTER TABLE `user_approval_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Constraints for dumped tables
@@ -990,9 +939,7 @@ ALTER TABLE `notifications`
 --
 ALTER TABLE `performance_predictions`
   ADD CONSTRAINT `fk_performance_predictions_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_performance_predictions_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `performance_predictions_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `performance_predictions_ibfk_2` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_performance_predictions_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `quarterly_performance`

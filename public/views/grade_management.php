@@ -1,5 +1,5 @@
 <?php
-// File: C:\xampp\htdocs\AcadMeter\public\views\grade_management.php
+// File: grade_management.php
 
 // Start the session if not already started
 if (session_status() == PHP_SESSION_NONE) {
@@ -17,31 +17,58 @@ require_once __DIR__ . '/../../server/controllers/grade_management_controller.ph
 
 $gradeManagementController = new GradeManagementController($conn);
 
-$instructor_id = $gradeManagementController->getInstructorId($_SESSION['user_id']);
+// Use the user_id directly from the session
+$instructor_id = $_SESSION['user_id'];
 
+// Define quarters
 $quarters = [1, 2, 3, 4];
 
-$components = [
-    ['key' => 'written_works', 'name' => 'Written Works', 'weight' => 30],
-    ['key' => 'performance_tasks', 'name' => 'Performance Tasks', 'weight' => 50],
-    ['key' => 'quarterly_assessment', 'name' => 'Quarterly Assessment', 'weight' => 20],
-];
+// Fetch grade components from the database
+$components = [];
+$gradeComponentsQuery = "SELECT component_id, component_name, weight FROM grade_components";
+$result = $conn->query($gradeComponentsQuery);
 
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $components[] = [
+            'component_id' => (int)$row['component_id'],
+            'name' => $row['component_name'],
+            'weight' => (float)$row['weight']
+        ];
+    }
+} else {
+    // Handle query failure
+    die("Error fetching grade components: " . $conn->error);
+}
+
+// Define subcategories mapped by component_id
 $subcategories = [
-    'written_works' => [
+    1 => [ // Assuming component_id 1 is Written Works
         ['name' => 'Quizzes', 'description' => 'Short tests to assess understanding of topics.'],
         ['name' => 'Essays', 'description' => 'Longer written tasks evaluating depth of knowledge and argumentation.'],
         ['name' => 'Homework', 'description' => 'Tasks completed outside class to reinforce learning.'],
     ],
-    'performance_tasks' => [
+    2 => [ // Assuming component_id 2 is Performance Tasks
         ['name' => 'Projects', 'description' => 'Group or individual projects involving creativity and research.'],
         ['name' => 'Presentations', 'description' => 'Oral presentations demonstrating understanding.'],
         ['name' => 'Lab Work', 'description' => 'Practical experiments and reports.'],
     ],
-    'quarterly_assessment' => [
+    3 => [ // Assuming component_id 3 is Quarterly Assessment
         ['name' => 'Quarterly Exam', 'description' => 'Comprehensive test summarizing student performance.'],
     ]
 ];
+
+// Function to get ordinal suffix for quarters
+function getOrdinalSuffix($number) {
+    if (!in_array(($number % 100), [11, 12, 13])) {
+        switch ($number % 10) {
+            case 1:  return $number . 'st';
+            case 2:  return $number . 'nd';
+            case 3:  return $number . 'rd';
+        }
+    }
+    return $number . 'th';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -156,37 +183,24 @@ $subcategories = [
             <div class="card-body">
                 <form id="gradeForm" method="post" action="">
                     <div class="form-row">
-                        <div class="form-group col-md-4">
+                        <div class="form-group col-md-6">
                             <label for="section">Select Section:</label>
                             <select id="section" name="section" class="form-control" required>
                                 <option value="">-- Select Section --</option>
                             </select>
                         </div>
-                        <div class="form-group col-md-4">
+                        <div class="form-group col-md-6">
                             <label for="subject">Select Subject:</label>
                             <select id="subject" name="subject" class="form-control" required disabled>
                                 <option value="">-- Select Subject --</option>
                             </select>
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="academic_year">Academic Year:</label>
-                            <input type="text" id="academic_year" name="academic_year" class="form-control" placeholder="YYYY-YYYY" required pattern="\d{4}-\d{4}">
                         </div>
                     </div>
 
                     <div class="quarter-tabs mb-3">
                         <?php foreach ($quarters as $quarter): ?>
                             <button type="button" class="btn btn-outline-primary tab-btn<?php echo $quarter === 1 ? ' active' : ''; ?>" data-quarter="<?php echo $quarter; ?>">
-                                <?php 
-                                $suffix = match($quarter) {
-                                    1 => 'st',
-                                    2 => 'nd',
-                                    3 => 'rd',
-                                    4 => 'th',
-                                    default => 'th'
-                                };
-                                echo $quarter . $suffix . ' Quarter';
-                                ?>
+                                <?php echo getOrdinalSuffix($quarter) . ' Quarter'; ?>
                             </button>
                         <?php endforeach; ?>
                     </div>
@@ -205,10 +219,10 @@ $subcategories = [
                                         <?php foreach ($components as $component): ?>
                                             <th>
                                                 <div class="component-header">
-                                                    <?php echo $component['name']; ?> (<?php echo $component['weight']; ?>%)
+                                                    <?php echo htmlspecialchars($component['name']); ?> (<?php echo htmlspecialchars($component['weight']); ?>%)
                                                 </div>
                                                 <div class="component-description">
-                                                    Total score for all <?php echo strtolower($component['name']); ?>
+                                                    Total score for all <?php echo strtolower(htmlspecialchars($component['name'])); ?>
                                                 </div>
                                             </th>
                                         <?php endforeach; ?>
@@ -233,13 +247,13 @@ $subcategories = [
                                         <?php foreach ($components as $component): ?>
                                             <th class="grade-cell">
                                                 <div class="component-header">
-                                                    <?php echo $component['name']; ?> (<?php echo $component['weight']; ?>%)
-                                                    <button type="button" class="btn btn-sm btn-outline-primary add-subcategory-btn" data-component="<?php echo $component['key']; ?>">
+                                                    <?php echo htmlspecialchars($component['name']); ?> (<?php echo htmlspecialchars($component['weight']); ?>%)
+                                                    <button type="button" class="btn btn-sm btn-outline-primary add-subcategory-btn" data-component-id="<?php echo htmlspecialchars($component['component_id']); ?>">
                                                         <i class="fas fa-plus"></i>
                                                     </button>
                                                 </div>
                                                 <div class="component-description">
-                                                    Average of all <?php echo strtolower($component['name']); ?> activities
+                                                    Average of all <?php echo strtolower(htmlspecialchars($component['name'])); ?> activities
                                                 </div>
                                             </th>
                                         <?php endforeach; ?>
@@ -268,23 +282,19 @@ $subcategories = [
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="subcategoryModalLabel">Add Subcategory</h5>
+                    <h5 class="modal-title">Add Subcategory</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="componentSelect">Component</label>
-                        <select id="componentSelect" class="form-control" disabled>
-                            <?php foreach ($components as $component): ?>
-                                <option value="<?php echo $component['key']; ?>"><?php echo $component['name']; ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <input type="hidden" id="modalComponentId" value="">
                     <div class="form-group">
                         <label for="subcategorySelect">Subcategory</label>
-                        <select id="subcategorySelect" class="form-control"></select>
+                        <select id="subcategorySelect" class="form-control">
+                            <option value="">-- Select Subcategory --</option>
+                            <!-- Options will be dynamically populated based on component_id -->
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="subcategoryDescription">Description</label>
@@ -299,15 +309,19 @@ $subcategories = [
         </div>
     </div>
 
+    <!-- JavaScript Dependencies -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- Pass PHP variables to JavaScript -->
     <script>
-        // Pass PHP variables to JavaScript
         var instructorId = <?php echo json_encode($instructor_id); ?>;
-        var components = <?php echo json_encode($components); ?>;
+        var components = <?php echo json_encode($components); ?>; // Now includes component_id
         var subcategories = <?php echo json_encode($subcategories); ?>;
     </script>
+    
+    <!-- Revised JavaScript for Grade Management -->
     <script src="/AcadMeter/public/assets/js/grade_management.js"></script>
 </body>
 </html>

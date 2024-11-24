@@ -177,7 +177,7 @@ function getOrdinalSuffix($number) {
 </head>
 <body>
     <div id="grade-management" class="content-section">
-        <h2 class="mb-4">Grade Management <i class="fas fa-info-circle text-primary" data-toggle="tooltip" title="Manage and record student grades for different components."></i></h2>
+        <h2 class="mb-4"><i class="fas fa-info-circle text-primary" data-toggle="tooltip" title="Manage and record student grades for different components."></i></h2>
 
         <div class="card shadow-sm">
             <div class="card-body">

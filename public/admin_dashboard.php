@@ -3,9 +3,15 @@ session_start();
 
 // Check if the user is logged in as an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
-    header('Location: login.html');
+    header('Location: /AcadMeter/public/login.php');
     exit;
 }
+
+// Include database connection using __DIR__ for absolute path
+require_once __DIR__ . '/../config/db_connection.php';
+
+// Rest of your PHP code...
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -13,7 +19,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - AcadMeter</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./assets/css/admin_dashboard.css">
 </head>
@@ -88,6 +94,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                 </div>
             </header>
 
+            <!-- Dashboard Overview Section -->
             <section id="dashboard-overview" class="content-section">
                 <div class="card-grid">
                     <div class="card bg-primary text-white">
@@ -121,6 +128,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                 </div>
             </section>
 
+            <!-- User Management Section -->
             <section id="user-management" class="content-section" style="display: none;">
                 <div class="card">
                     <div class="card-body">
@@ -150,6 +158,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                 </div>
             </section>
 
+            <!-- Activity Logs Section -->
             <section id="activity-logs" class="content-section" style="display: none;">
                 <div class="card">
                     <div class="card-body">
@@ -165,6 +174,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <!-- Sample data; replace with dynamic data as needed -->
                                     <tr>
                                         <td>2023-05-15 14:30:22</td>
                                         <td>John Doe</td>
@@ -190,19 +200,18 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                 </div>
             </section>
 
+            <!-- Reports Section -->
             <section id="reports" class="content-section" style="display: none;">
                 <div class="card">
                     <div class="card-body">
                         <h3 class="section-title"><i class="fas fa-chart-bar"></i> Reports</h3>
-                        <div class="tab-buttons">
-                            <button class="tab-btn active" onclick="showReportTab('grade-distribution')">Grade Distribution</button>
+                        <div class="tab-buttons">                           
                             <button class="tab-btn" onclick="showReportTab('user-activity')">User Activity</button>
-                            <button class="tab-btn" onclick="showReportTab('system-performance')">System Performance</button>
                         </div>
                         <div class="tab-content">
                             <div id="grade-distribution" class="tab-pane">
-                                <h4>Grade Distribution Report</h4>
-                                <p>Placeholder for grade distribution chart</p>
+                                <h4></h4>
+                                <p>User activity last 30 days</p>
                             </div>
                             <div id="user-activity" class="tab-pane" style="display: none;">
                                 <h4>User Activity Report</h4>
@@ -216,43 +225,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
                     </div>
                 </div>
             </section>
-
-            <section id="settings" class="content-section" style="display: none;">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="section-title"><i class="fas fa-cog"></i> Settings</h3>
-                        <form id="settings-form">
-                            <div class="form-group">
-                                <label for="site-name">Site Name</label>
-                                <input type="text" id="site-name" name="site-name" class="form-control" value="AcadMeter">
-                            </div>
-                            <div class="form-group">
-                                <label for="admin-email">Admin Email</label>
-                                <input type="email" id="admin-email" name="admin-email" class="form-control" value="admin@acadmeter.com">
-                            </div>
-                            <div class="form-group">
-                                <label for="user-registration">Allow User Registration</label>
-                                <select id="user-registration" name="user-registration" class="form-control">
-                                    <option value="1">Yes</option>
-                                    <option value="0">No</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="maintenance-mode">Maintenance Mode</label>
-                                <select id="maintenance-mode" name="maintenance-mode" class="form-control">
-                                    <option value="0">Off</option>
-                                    <option value="1">On</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Save Settings</button>
-                        </form>
-                    </div>
-                </div>
-            </section>
         </main>
     </div>
 
-    <script src="./assets/js/admin_dashboard.js"></script>
+    <!-- Alert Placeholder -->
     <div id="alertPlaceholder" class="alert-container"></div>
+
+    <!-- Include Admin Dashboard JS -->
+    <script src="./assets/js/admin_dashboard.js"></script>
 </body>
 </html>

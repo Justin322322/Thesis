@@ -37,7 +37,7 @@ if (!file_exists($view_file)) {
     <!-- Include CSS files -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Include FontAwesome CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <!-- Include Custom CSS -->
@@ -56,25 +56,41 @@ if (!file_exists($view_file)) {
                 <h3>AcadMeter</h3>
             </div>
             <nav class="sidebar-nav">
-                <?php
-                $nav_links = [
-                    'dashboard_overview' => ['icon' => 'tachometer-alt', 'label' => 'Dashboard'],
-                    'class_management' => ['icon' => 'users-cog', 'label' => 'Class Management'],
-                    'grade_management' => ['icon' => 'chart-line', 'label' => 'Grade Management'],
-                    'performance_monitoring' => ['icon' => 'chart-bar', 'label' => 'Performance Monitoring'],
-                    'predictive_analytics' => ['icon' => 'brain', 'label' => 'Predictive Analytics'],
-                    'feedback' => ['icon' => 'comments', 'label' => 'Feedback'],
-                    'reporting' => ['icon' => 'file-alt', 'label' => 'Reporting']
-                ];
+                <a href="?view=dashboard_overview" class="nav-link <?php echo $view === 'dashboard_overview' ? 'active' : ''; ?>">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                
+                <a href="?view=class_management" class="nav-link <?php echo $view === 'class_management' ? 'active' : ''; ?>">
+                    <i class="fas fa-users"></i>
+                    <span>Class Management</span>
+                </a>
+                
+                <a href="?view=grade_management" class="nav-link <?php echo $view === 'grade_management' ? 'active' : ''; ?>">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Grade Management</span>
+                </a>
+                
+                <a href="?view=predictive_analytics" class="nav-link <?php echo $view === 'predictive_analytics' ? 'active' : ''; ?>">
+                    <i class="fas fa-brain"></i>
+                    <span>Predictive Analytics</span>
+                </a>
+            
+                
+                <a href="?view=feedback" class="nav-link <?php echo $view === 'feedback' ? 'active' : ''; ?>">
+                    <i class="fas fa-comments"></i>
+                    <span>Feedback</span>
+                </a>
 
-                foreach ($nav_links as $key => $link) {
-                    $active_class = ($view === $key) ? 'active' : '';
-                    echo "<a href=\"?view={$key}\" class=\"nav-link {$active_class}\">
-                            <i class=\"fas fa-{$link['icon']} fa-fw mr-2\"></i>
-                            <span>{$link['label']}</span>
-                          </a>";
-                }
-                ?>
+                <a href="?view=performance_monitoring" class="nav-link <?php echo $view === 'performance_monitoring' ? 'active' : ''; ?>">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Performance Monitoring</span>
+                </a>
+                
+                <a href="?view=reporting" class="nav-link <?php echo $view === 'reporting' ? 'active' : ''; ?>">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Reporting</span>
+                </a>
             </nav>
         </aside>
 

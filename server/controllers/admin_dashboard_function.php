@@ -1,12 +1,9 @@
 <?php
+// File: C:\xampp\htdocs\AcadMeter\server\controllers\admin_dashboard_function.php
+
 session_start();
 
-// Check if the user is logged in as an admin
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
-    header('Location: /AcadMeter/public/login.php');
-    exit;
-}
-
+// Include necessary libraries
 require_once '../../config/db_connection.php';
 require_once '../../vendor/phpmailer/phpmailer/src/PHPMailer.php';
 require_once '../../vendor/phpmailer/phpmailer/src/SMTP.php';
@@ -15,18 +12,19 @@ require_once '../../vendor/phpmailer/phpmailer/src/Exception.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-header('Content-Type: application/json');
-
-// Handle the request based on the 'action' parameter
-$data = json_decode(file_get_contents("php://input"), true);
-$action = $data['action'] ?? ($_GET['action'] ?? ($_POST['action'] ?? ''));
-
-if (!$action) {
-    echo json_encode(['status' => 'error', 'message' => 'No action specified']);
+// Check if the user is logged in as an admin
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized access.']);
     exit;
 }
 
-// Available actions and their respective handlers
+header('Content-Type: application/json');
+
+// Retrieve input data
+$input = json_decode(file_get_contents("php://input"), true);
+$action = $input['action'] ?? ($_GET['action'] ?? ($_POST['action'] ?? ''));
+
+// Handle the request based on the 'action' parameter
 switch ($action) {
     case 'overview':
         getDashboardStats($conn);
@@ -38,15 +36,15 @@ switch ($action) {
         getApprovedUsers($conn);
         break;
     case 'delete_user':
-        if (isset($data['userId'])) {
-            deleteUser($conn, $data['userId']);
+        if (isset($input['userId'])) {
+            deleteUser($conn, $input['userId']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Invalid data received']);
         }
         break;
     case 'update_user_status':
-        if (isset($data['userId']) && isset($data['userAction'])) {
-            updateUserStatus($conn, $data['userId'], $data['userAction']);
+        if (isset($input['userId']) && isset($input['userAction'])) {
+            updateUserStatus($conn, $input['userId'], $input['userAction']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Invalid data received']);
         }
@@ -58,9 +56,6 @@ switch ($action) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
 }
 
-/**
- * Function to fetch dashboard overview stats
- */
 function getDashboardStats($conn) {
     try {
         $data = [
@@ -75,13 +70,12 @@ function getDashboardStats($conn) {
     }
 }
 
-/**
- * Function to fetch pending users who are verified
- */
 function getPendingUsers($conn) {
     try {
-        // Fetch users with status 'pending' and verified = TRUE
         $stmt = $conn->prepare("SELECT user_id, first_name, last_name, user_type, email, status FROM users WHERE status = 'pending' AND verified = TRUE");
+        if (!$stmt) {
+            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+        }
         $stmt->execute();
         $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         echo json_encode($result);
@@ -90,13 +84,12 @@ function getPendingUsers($conn) {
     }
 }
 
-/**
- * Function to fetch approved users available for deletion
- */
 function getApprovedUsers($conn) {
     try {
-        // Fetch users with status 'approved' and user_type 'Instructor' or 'Student'
         $stmt = $conn->prepare("SELECT user_id, first_name, last_name, user_type, email FROM users WHERE status = 'approved' AND user_type IN ('Instructor', 'Student')");
+        if (!$stmt) {
+            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+        }
         $stmt->execute();
         $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         echo json_encode($result);
@@ -105,37 +98,33 @@ function getApprovedUsers($conn) {
     }
 }
 
-/**
- * Function to delete a user
- */
 function deleteUser($conn, $userId) {
     try {
-        // Begin transaction
         $conn->begin_transaction();
-        
+
         error_log("Starting deletion process for user ID: $userId");
-        
-        // Check if the user exists and get their user type
-        $checkStmt = $conn->prepare("SELECT user_id, user_type FROM users WHERE user_id = ?");
-        if (!$checkStmt) {
+
+        // Fetch user details
+        $stmt = $conn->prepare("SELECT user_id, user_type FROM users WHERE user_id = ?");
+        if (!$stmt) {
             throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
         }
-        $checkStmt->bind_param("i", $userId);
-        if (!$checkStmt->execute()) {
-            throw new Exception("Execute failed: (" . $checkStmt->errno . ") " . $checkStmt->error);
+        $stmt->bind_param("i", $userId);
+        if (!$stmt->execute()) {
+            throw new Exception("Execute failed: (" . $stmt->errno . ") " . $stmt->error);
         }
-        $result = $checkStmt->get_result();
-        
+        $result = $stmt->get_result();
+
         if ($result->num_rows === 0) {
             throw new Exception("User not found.");
         }
-        
+
         $user = $result->fetch_assoc();
         $userType = $user['user_type'];
-        
+
         error_log("User found. Type: $userType");
 
-        // Log action
+        // Log the deletion
         $logMessage = "User ID $userId of type $userType has been deleted.";
         $logStmt = $conn->prepare("INSERT INTO action_logs (user_id, action_type, description) VALUES (?, 'User Deletion', ?)");
         if (!$logStmt) {
@@ -146,7 +135,7 @@ function deleteUser($conn, $userId) {
             throw new Exception("Execute failed: (" . $logStmt->errno . ") " . $logStmt->error);
         }
 
-        // Delete from specific user type table (students, instructors, or admins)
+        // Delete user from specific tables based on user type
         switch ($userType) {
             case 'Student':
                 $stmt = $conn->prepare("DELETE FROM students WHERE user_id = ?");
@@ -160,7 +149,7 @@ function deleteUser($conn, $userId) {
             default:
                 throw new Exception("Invalid user type: $userType");
         }
-        
+
         if (!$stmt) {
             throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
         }
@@ -168,14 +157,14 @@ function deleteUser($conn, $userId) {
         if (!$stmt->execute()) {
             throw new Exception("Execute failed: (" . $stmt->errno . ") " . $stmt->error);
         }
-        
+
         if ($stmt->affected_rows === 0) {
             error_log("No rows affected when deleting from $userType table for user ID: $userId");
         } else {
             error_log("Successfully deleted from $userType table for user ID: $userId");
         }
-        
-        // Delete from users table
+
+        // Delete user from users table
         $deleteUserStmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
         if (!$deleteUserStmt) {
             throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
@@ -184,109 +173,133 @@ function deleteUser($conn, $userId) {
         if (!$deleteUserStmt->execute()) {
             throw new Exception("Execute failed: (" . $deleteUserStmt->errno . ") " . $deleteUserStmt->error);
         }
-        
+
         if ($deleteUserStmt->affected_rows === 0) {
             throw new Exception("Failed to delete user from users table. User ID: $userId");
         }
-        
+
         error_log("Successfully deleted user from users table. User ID: $userId");
-        
-        // Commit transaction
+
         $conn->commit();
-        
+
         error_log("User deletion process completed successfully for User ID: $userId");
         echo json_encode(['status' => 'success', 'message' => 'User deleted successfully.']);
     } catch (Exception $e) {
-        // Rollback transaction on error
         $conn->rollback();
         error_log("Error in deleteUser function: " . $e->getMessage());
         echo json_encode(['status' => 'error', 'message' => 'Failed to delete user: ' . $e->getMessage()]);
     }
 }
 
-/**
- * Function to update user status (approve/reject)
- */
 function updateUserStatus($conn, $userId, $action) {
     try {
+        $conn->begin_transaction();
+
         error_log("Updating user status: User ID = $userId, Action = $action");
-        // Check if the user is verified
-        $verifyStmt = $conn->prepare("SELECT verified, status FROM users WHERE user_id = ?");
+
+        // Fetch user details
+        $verifyStmt = $conn->prepare("SELECT verified, status, user_type, first_name, last_name FROM users WHERE user_id = ?");
+        if (!$verifyStmt) {
+            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+        }
         $verifyStmt->bind_param("i", $userId);
         $verifyStmt->execute();
         $verifyResult = $verifyStmt->get_result();
         if ($verifyResult->num_rows === 0) {
-            echo json_encode(['status' => 'error', 'message' => 'User not found.']);
-            return;
+            throw new Exception('User not found.');
         }
         $user = $verifyResult->fetch_assoc();
         $verifyStmt->close();
-        
+
         if (!$user['verified']) {
-            echo json_encode(['status' => 'error', 'message' => 'User is not verified and cannot be updated.']);
-            return;
+            throw new Exception('User is not verified and cannot be updated.');
         }
 
-        // Determine new status based on action
         $newStatus = ($action === 'approve') ? 'approved' : 'rejected';
-        
-        // Check if the status is already set to the new status
+
         if ($user['status'] === $newStatus) {
-            echo json_encode(['status' => 'error', 'message' => "User is already {$newStatus}."]);
-            return;
+            throw new Exception("User is already {$newStatus}.");
         }
 
         // Update user status
         $stmt = $conn->prepare("UPDATE users SET status = ? WHERE user_id = ?");
+        if (!$stmt) {
+            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+        }
         $stmt->bind_param("si", $newStatus, $userId);
         $stmt->execute();
-        
+
         if ($stmt->affected_rows > 0) {
             $message = ($newStatus === 'approved') ? "User has been successfully approved." : "User has been successfully rejected.";
             error_log("User status updated successfully: $message");
-            // Insert notification for the user
+
+            // If approved and user is a student, add to students table
+            if ($newStatus === 'approved' && $user['user_type'] === 'Student') {
+                $insertStudentStmt = $conn->prepare("INSERT INTO students (user_id, first_name, last_name) VALUES (?, ?, ?)");
+                if (!$insertStudentStmt) {
+                    throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+                }
+                $insertStudentStmt->bind_param("iss", $userId, $user['first_name'], $user['last_name']);
+                if (!$insertStudentStmt->execute()) {
+                    throw new Exception("Failed to insert user into students table: " . $insertStudentStmt->error);
+                }
+                $insertStudentStmt->close();
+            }
+
+            // Insert notification
             $notificationMessage = ($newStatus === 'approved') ? "Your account has been approved." : "Your account has been rejected.";
             $notificationStmt = $conn->prepare("INSERT INTO notifications (user_id, message, notification_type) VALUES (?, ?, 'account_approval')");
+            if (!$notificationStmt) {
+                throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+            }
             $notificationStmt->bind_param("is", $userId, $notificationMessage);
-            $notificationStmt->execute();
+            if (!$notificationStmt->execute()) {
+                throw new Exception("Failed to insert notification: " . $notificationStmt->error);
+            }
             $notificationStmt->close();
-        
-            // Log action
+
+            // Log the action
             $logMessage = ucfirst($newStatus) . " action taken for User ID $userId.";
             $logStmt = $conn->prepare("INSERT INTO action_logs (user_id, action_type, description) VALUES (?, 'Account Approval', ?)");
+            if (!$logStmt) {
+                throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+            }
             $logStmt->bind_param("is", $userId, $logMessage);
-            $logStmt->execute();
+            if (!$logStmt->execute()) {
+                throw new Exception("Failed to insert action log: " . $logStmt->error);
+            }
             $logStmt->close();
-        
-            // Send email notification to the user
+
+            // Send email notification
             sendEmailNotification($newStatus, $userId, $conn);
-        
+
+            $conn->commit();
+
             echo json_encode(['status' => 'success', 'message' => $message]);
         } else {
-            $errorMessage = 'No changes were made. User status might already be set to ' . $newStatus . '.';
-            error_log("Error updating user status: $errorMessage");
-            echo json_encode(['status' => 'error', 'message' => $errorMessage]);
+            throw new Exception('No changes were made. User status might already be set to ' . $newStatus . '.');
         }
     } catch (Exception $e) {
-        $errorMessage = 'Failed to update user status: ' . $e->getMessage();
-        error_log("Exception in updateUserStatus: $errorMessage");
-        echo json_encode(['status' => 'error', 'message' => $errorMessage]);
+        $conn->rollback();
+        error_log("Error in updateUserStatus: " . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
 }
 
-/**
- * Function to send email notifications to users
- */
 function sendEmailNotification($status, $userId, $conn) {
-    // Fetch user's email and first name
+    // Fetch user email and name
     $emailQuery = $conn->prepare("SELECT email, first_name FROM users WHERE user_id = ?");
+    if (!$emailQuery) {
+        error_log("Prepare failed for email query: (" . $conn->errno . ") " . $conn->error);
+        return;
+    }
     $emailQuery->bind_param("i", $userId);
     $emailQuery->execute();
     $userData = $emailQuery->get_result()->fetch_assoc();
     $emailQuery->close();
 
     if (!$userData) {
-        // User not found, cannot send email
+        error_log("User data not found for User ID: $userId");
         return;
     }
 
@@ -294,38 +307,37 @@ function sendEmailNotification($status, $userId, $conn) {
     try {
         // Server settings
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';                     // Set the SMTP server to send through
-        $mail->SMTPAuth   = true;                                 // Enable SMTP authentication
-        $mail->Username   = 'justinmarlosibonga@gmail.com';       // SMTP username
-        $mail->Password   = 'mvnhppaolniedhvv';                  // SMTP password
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;       // Enable TLS encryption; PHPMailer::ENCRYPTION_SMTPS encouraged
-        $mail->Port       = 587;                                  // TCP port to connect to
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'justinmarlosibonga@gmail.com'; // Replace with your SMTP username
+        $mail->Password   = 'mvnhppaolniedhvv'; // Replace with your SMTP password or app-specific password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
 
         // Recipients
         $mail->setFrom('no-reply@acadmeter.com', 'AcadMeter Admin');
-        $mail->addAddress($userData['email'], $userData['first_name']);     // Add a recipient
+        $mail->addAddress($userData['email'], $userData['first_name']);
 
         // Content
-        $mail->isHTML(false);                                  // Set email format to plain text
+        $mail->isHTML(false);
         $mail->Subject = ($status === 'approved') ? 'Account Approved' : 'Account Rejected';
         $mail->Body    = ($status === 'approved') ?
             "Dear {$userData['first_name']},\n\nYour account has been approved. Welcome to AcadMeter!\n\nBest regards,\nAcadMeter Team" :
             "Dear {$userData['first_name']},\n\nWe regret to inform you that your account has been rejected.\n\nBest regards,\nAcadMeter Team";
 
         $mail->send();
+        error_log("Email sent to {$userData['email']} regarding account {$status}.");
     } catch (Exception $e) {
-        // Log email sending failure
         error_log("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
     }
 }
 
-/**
- * Function to fetch latest notifications
- */
 function getNotifications($conn) {
     try {
-        // Fetch the latest 10 notifications
-        $stmt = $conn->prepare("SELECT message, timestamp FROM notifications ORDER BY timestamp DESC LIMIT 10");
+        $stmt = $conn->prepare("SELECT notification_id, user_id, message, notification_type, is_read, created_at FROM notifications ORDER BY created_at DESC LIMIT 10");
+        if (!$stmt) {
+            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+        }
         $stmt->execute();
         $notifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         echo json_encode($notifications);

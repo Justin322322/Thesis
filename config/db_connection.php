@@ -1,5 +1,5 @@
 <?php
-// db_connection.php
+// C:\xampp\htdocs\AcadMeter\config\db_connection.php
 
 $servername = "localhost";
 $username = "root";

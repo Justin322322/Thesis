@@ -1,73 +1,189 @@
 <?php
-// File: C:\xampp\htdocs\AcadMeter\public\views\dashboard_overview.php
+// File: public/views/dashboard_overview.php
 
-// Example: Fetch metrics from the database or use existing data
-// For demonstration, we'll mock some data
-$total_students = 120;
-$at_risk_students = 5;
-$active_classes = 8;
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Check session
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Check authentication
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
+    header("Location: /login.php");
+    exit();
+}
+
+// Include necessary files
+require_once __DIR__ . '/../../config/db_connection.php';
+require_once __DIR__ . '/../../server/models/DashboardModel.php';
+
+// Initialize DashboardModel
+$dashboardModel = new DashboardModel($conn);
+
+// Fetch metrics
+try {
+    $totalStudents = $dashboardModel->getTotalStudents();
+    $atRiskStudents = $dashboardModel->getAtRiskStudentsCount();
+    $performanceData = $dashboardModel->getAveragePerformanceByMonth();
+} catch (Exception $e) {
+    $errorMessage = "An error occurred while fetching dashboard data: " . $e->getMessage();
+}
 ?>
 
-<div class="container-fluid">
+<style>
+.card {
+    transition: all 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+.bg-primary {
+    background-color: #007bff !important;
+}
+.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+.bg-success {
+    background-color: #28a745 !important;
+}
+.card-text {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+.text-muted {
+    color: rgba(0,0,0,0.6) !important;
+}
+</style>
+
+<div class="dashboard-overview">
+    <?php if (isset($errorMessage)): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?php echo htmlspecialchars($errorMessage); ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    <?php endif; ?>
+
     <div class="row">
         <!-- Total Students Card -->
-        <div class="col-md-4">
-            <div class="card mb-4 shadow-sm">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 bg-primary text-white">
                 <div class="card-body">
                     <h5 class="card-title">Total Students</h5>
-                    <p class="card-text" id="totalStudents"><?= htmlspecialchars($total_students) ?></p>
+                    <p class="card-text" id="totalStudents">
+                        <?php echo isset($totalStudents) ? $totalStudents : '<i class="fas fa-spinner fa-spin"></i> Loading...'; ?>
+                    </p>
+                    <p class="text-muted">Number of student's across all section</p>
                 </div>
             </div>
         </div>
         <!-- At-Risk Students Card -->
-        <div class="col-md-4">
-            <div class="card mb-4 shadow-sm">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 bg-warning">
                 <div class="card-body">
                     <h5 class="card-title">At-Risk Students</h5>
-                    <p class="card-text" id="atRiskStudents"><?= htmlspecialchars($at_risk_students) ?></p>
+                    <p class="card-text" id="atRiskStudents">
+                        <?php 
+                        if (isset($atRiskStudents) && isset($totalStudents)) {
+                            echo $atRiskStudents;
+                            $percentage = $totalStudents > 0 ? ($atRiskStudents / $totalStudents) * 100 : 0;
+                            echo " <span class='text-muted'>(" . number_format($percentage, 1) . "%)</span>";
+                        } else {
+                            echo '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                        }
+                        ?>
+                    </p>
+                    <p class="text-muted">Students with average grade lower than 75%</p>
+                    <p class="text-muted">Please check Predictive Analytics tab for more info.</p>
                 </div>
             </div>
         </div>
         <!-- Active Classes Card -->
-        <div class="col-md-4">
-            <div class="card mb-4 shadow-sm">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 bg-success text-white">
                 <div class="card-body">
                     <h5 class="card-title">Active Classes</h5>
-                    <p class="card-text" id="activeClasses"><?= htmlspecialchars($active_classes) ?></p>
+                    <p class="card-text" id="activeClasses">
+                        <?php echo isset($activeClasses) ? $activeClasses : '<i class="fas fa-spinner fa-spin"></i> Loading...'; ?>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Example Chart -->
+    <!-- Performance Chart -->
     <div class="row">
         <div class="col-md-12">
-            <canvas id="performanceChart" height="100"></canvas>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Monthly Average Performance</h5>
+                    <div class="chart-container" style="position: relative; height:50vh; width:100%;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Initialize Chart.js Performance Chart
-    document.addEventListener('DOMContentLoaded', () => {
-        const ctx = document.getElementById('performanceChart').getContext('2d');
-        const performanceChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-                datasets: [{
-                    label: 'Average Performance',
-                    data: [65, 59, 80, 81, 56, 55],
-                    backgroundColor: 'rgba(74, 144, 226, 0.2)',
-                    borderColor: 'rgba(74, 144, 226, 1)',
-                    borderWidth: 2,
-                    fill: true
-                }]
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    const performanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: <?php echo json_encode(array_column($performanceData, 'month')); ?>,
+            datasets: [{
+                label: 'Average Grade',
+                data: <?php echo json_encode(array_column($performanceData, 'average_grade')); ?>,
+                backgroundColor: 'rgba(0, 123, 255, 0.6)',
+                borderColor: 'rgba(0, 123, 255, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: 'Monthly Average Performance',
+                    font: {
+                        size: 18,
+                        weight: 'bold'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Average Grade: ' + context.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
             }
-        });
+        }
     });
+});
 </script>
+

@@ -1,0 +1,151 @@
+/* Grade Management specific styles */
+.grade-management-section {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,.1);
+}
+
+/* Remove any conflicting Font Awesome styles */
+.grade-management-section .fas,
+.grade-management-section .fa {
+    /* Reset any previously set styles */
+    all: unset;
+    /* Inherit from the global styles set in teacher_dashboard.css */
+    font-family: inherit;
+    font-weight: inherit;
+    font-style: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    text-rendering: inherit;
+    -webkit-font-smoothing: inherit;
+    -moz-osx-font-smoothing: inherit;
+    display: inline-block;
+}
+
+.grade-cell {
+    vertical-align: middle !important;
+    min-width: 150px;
+}
+
+.subcategory-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.subcategory-name {
+    flex-grow: 1;
+    margin-right: 8px;
+    font-size: 14px;
+    cursor: help;
+}
+
+.subcategory-score {
+    width: 60px !important;
+    text-align: right;
+    padding: 4px 8px !important;
+    height: 30px !important;
+}
+
+.component-total {
+    font-weight: bold;
+    color: #495057;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* Button styles */
+.add-subcategory-btn,
+.remove-subcategory-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.remove-subcategory-btn {
+    margin-left: 5px;
+}
+
+/* Button specific icon styles */
+.add-subcategory-btn .fas,
+.remove-subcategory-btn .fas {
+    font-size: 12px;
+}
+
+/* Grade input styles */
+.grade-input {
+    width: 70px !important;
+    text-align: center;
+}
+
+/* Status indicators */
+.failed-grade {
+    color: #dc3545;
+}
+
+.passed-grade {
+    color: #28a745;
+}
+
+/* Tab styles */
+.quarter-tabs {
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    margin-right: 0.5rem;
+}
+
+/* Table styles */
+.table th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Modal styles */
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+    padding: 1rem;
+}
+
+/* Form control styles */
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Tooltip styles */
+[data-toggle="tooltip"] {
+    cursor: help;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .grade-cell {
+        min-width: 120px;
+    }
+    
+    .subcategory-row {
+        flex-wrap: wrap;
+    }
+    
+    .subcategory-score {
+        width: 100% !important;
+        margin-top: 4px;
+    }
+}

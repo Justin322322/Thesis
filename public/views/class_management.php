@@ -151,7 +151,7 @@ if ($classRoster === false) {
 </head>
 <body>
     <div class="container-fluid">
-        <h3>Class Management</h3>
+        <h3>Manage Student Grades and Section</h3>
 
         <!-- Alert Placeholder -->
         <div id="classManagementAlert" class="alert" style="display: none;"></div>

@@ -1,3 +1,5 @@
+// File: C:\xampp\htdocs\AcadMeter\public\assets\js\admin_dashboard.js
+
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.querySelector('.sidebar');
     const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -122,7 +124,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     tableHTML += '</tbody></table>';
                     container.innerHTML = tableHTML;
                 }
-                loadNotifications();
             })
             .catch(error => {
                 console.error('Error loading pending users:', error);
@@ -181,10 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('updateUserStatus called with:', userId, action);
         if (confirm(`Are you sure you want to ${action} this user?`)) {
             console.log(`Updating user ID ${userId} with action ${action}`);
-            fetch('/AcadMeter/server/controllers/admin_dashboard_function.php?action=update_user_status', {
+            fetch('/AcadMeter/server/controllers/admin_dashboard_function.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userId, userAction: action })
+                body: JSON.stringify({ action: 'update_user_status', userId: userId, userAction: action })
             })
             .then(response => response.json())
             .then(data => {
@@ -239,29 +240,24 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/AcadMeter/server/controllers/admin_dashboard_function.php?action=get_notifications')
             .then(response => response.json())
             .then(data => {
-                const notificationCount = document.getElementById('notification-count');
                 const notificationItems = document.getElementById('notification-items');
+                const notificationCount = document.getElementById('notification-count');
                 notificationItems.innerHTML = '';
-
-                if (data.status && data.status === 'error') {
-                    notificationItems.innerHTML = `<p class="text-danger">${data.message}</p>`;
-                    return;
-                }
-
                 if (data.length > 0) {
-                    notificationCount.style.display = 'inline-block';
-                    notificationCount.textContent = data.length;
-
                     data.forEach(notification => {
-                        notificationItems.innerHTML += `
-                            <div class="dropdown-item">
-                                <p>${notification.message}</p>
-                                <small class="text-muted">${notification.timestamp}</small>
-                            </div>`;
+                        const item = document.createElement('a');
+                        item.className = 'dropdown-item';
+                        item.href = '#';
+                        item.innerHTML = `
+                            <div>${notification.message}</div>
+                            <small class="text-muted">${new Date(notification.created_at).toLocaleString()}</small>
+                        `;
+                        notificationItems.appendChild(item);
                     });
+                    notificationCount.textContent = data.length;
                 } else {
-                    notificationCount.style.display = 'none';
                     notificationItems.innerHTML = '<p class="dropdown-item">No new notifications.</p>';
+                    notificationCount.textContent = '0';
                 }
             })
             .catch(error => {
@@ -339,6 +335,8 @@ document.addEventListener('DOMContentLoaded', function() {
     window.confirmDelete = confirmDelete;
     window.showSuccessMessage = showSuccessMessage;
     window.showErrorMessage = showErrorMessage;
+    window.loadPendingUsers = loadPendingUsers;
+    window.loadDeleteUsers = loadDeleteUsers;
 
     // Initial load
     loadDashboardStats();

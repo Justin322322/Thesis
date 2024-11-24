@@ -14,8 +14,8 @@ $alertClass = "danger";
 if (isset($_GET['code'])) {
     $code = $_GET['code'];
 
-    // Retrieve first and last name using the verification code
-    $stmt = $conn->prepare("SELECT user_id, first_name, last_name FROM users WHERE verification_code = ? AND verified = 0");
+    // Retrieve user data using the verification code
+    $stmt = $conn->prepare("SELECT user_id, first_name, last_name, user_type FROM users WHERE verification_code = ? AND verified = 0");
     $stmt->bind_param("s", $code);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -24,21 +24,23 @@ if (isset($_GET['code'])) {
         $user = $result->fetch_assoc();
         $user_id = $user['user_id'];
         $full_name = $user['first_name'] . ' ' . $user['last_name'];
+        $user_type = $user['user_type'];
 
-        // Update user status to verified (still pending admin approval)
-        $update_stmt = $conn->prepare("UPDATE users SET verified = 1 WHERE verification_code = ?");
+        // Update user status to verified
+        $update_stmt = $conn->prepare("UPDATE users SET verified = 1, verification_timestamp = CURRENT_TIMESTAMP WHERE verification_code = ?");
         $update_stmt->bind_param("s", $code);
         $update_stmt->execute();
 
-        // Log the verification action in the activity logs
+        // Log the verification action
         $log_stmt = $conn->prepare("INSERT INTO activity_logs (user_id, activity_type) VALUES (?, 'Verification')");
         $log_stmt->bind_param("i", $user_id);
         $log_stmt->execute();
 
-        // Notify admin of a new verified account pending approval
-        $notification_message = "A new user has verified their account and is pending approval: $full_name";
-        $notification_stmt = $conn->prepare("INSERT INTO notifications (message, notification_type) VALUES (?, 'account_verification')");
-        $notification_stmt->bind_param("s", $notification_message);
+        // Create a notification for the admin
+        $notification_message = "A new $user_type account has been verified and is pending approval: $full_name";
+        $admin_id = 1; // Assuming the admin user_id is 1, adjust if necessary
+        $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
+        $notification_stmt->bind_param("is", $admin_id, $notification_message);
         $notification_stmt->execute();
 
         // Email admin with verification notice
@@ -66,11 +68,11 @@ function notifyAdmin($message) {
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'justinmarlosibonga@gmail.com'; // Replace with your email
-        $mail->Password = 'mvnhppaolniedhvv'; // Replace with your email password
+        $mail->Password = 'mvnhppaolniedhvv'; // Replace with your email password or app password
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
 
-        $mail->setFrom('justinmarlosibonga@gmail.com', 'AcadMeter Admin'); // Replace with sender email and name
+        $mail->setFrom('justinmarlosibonga@gmail.com', 'AcadMeter Admin');
         $mail->addAddress('justinmarlosibonga@gmail.com'); // Replace with the admin's email
         $mail->isHTML(true);
         $mail->Subject = 'New User Verification Notification';

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 21, 2024 at 12:23 PM
+-- Generation Time: Nov 24, 2024 at 04:56 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -35,6 +35,13 @@ CREATE TABLE `action_logs` (
   `action_timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `action_logs`
+--
+
+INSERT INTO `action_logs` (`log_id`, `user_id`, `action_type`, `description`, `action_timestamp`) VALUES
+(4, 44, 'Account Approval', 'Approved action taken for User ID 44.', '2024-11-24 01:40:06');
+
 -- --------------------------------------------------------
 
 --
@@ -47,6 +54,13 @@ CREATE TABLE `activity_logs` (
   `activity_type` enum('Login','Logout') NOT NULL,
   `activity_timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `activity_logs`
+--
+
+INSERT INTO `activity_logs` (`log_id`, `user_id`, `activity_type`, `activity_timestamp`) VALUES
+(1, 44, '', '2024-11-22 11:59:19');
 
 -- --------------------------------------------------------
 
@@ -103,6 +117,7 @@ CREATE TABLE `class_rankings` (
   `ranking_id` int(11) NOT NULL,
   `student_id` int(11) NOT NULL,
   `instructor_id` int(11) NOT NULL,
+  `quarter` tinyint(4) NOT NULL,
   `ranking_position` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -171,6 +186,15 @@ CREATE TABLE `grade_components` (
   `weight` decimal(5,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `grade_components`
+--
+
+INSERT INTO `grade_components` (`component_id`, `component_name`, `weight`) VALUES
+(1, 'Written Works', 30.00),
+(2, 'Performance Tasks', 50.00),
+(3, 'Quarterly Assessment', 20.00);
+
 -- --------------------------------------------------------
 
 --
@@ -227,11 +251,33 @@ INSERT INTO `instructors` (`instructor_id`, `user_id`, `employee_number`) VALUES
 
 CREATE TABLE `notifications` (
   `notification_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `message` varchar(255) NOT NULL,
-  `link` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `is_read` tinyint(1) DEFAULT 0
+  `user_id` int(11) DEFAULT NULL,
+  `message` text NOT NULL,
+  `notification_type` varchar(50) NOT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`notification_id`, `user_id`, `message`, `notification_type`, `is_read`, `created_at`) VALUES
+(4, 44, 'Your account has been approved.', 'account_approval', 0, '2024-11-24 01:40:06');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `participation`
+--
+
+CREATE TABLE `participation` (
+  `participation_id` int(11) NOT NULL,
+  `student_id` int(11) NOT NULL,
+  `section_id` int(11) NOT NULL,
+  `subject_id` int(11) NOT NULL,
+  `quarter` int(11) NOT NULL,
+  `participation_score` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -298,14 +344,6 @@ CREATE TABLE `sections` (
   `school_year` varchar(9) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `sections`
---
-
-INSERT INTO `sections` (`section_id`, `section_name`, `subject_id`, `instructor_id`, `school_year`) VALUES
-(20, 'Section 1', NULL, 40, '2024-2025'),
-(21, 'Kalabasa', NULL, 40, '2024-2025');
-
 -- --------------------------------------------------------
 
 --
@@ -323,9 +361,7 @@ CREATE TABLE `section_students` (
 
 INSERT INTO `section_students` (`section_id`, `student_id`) VALUES
 (15, 3),
-(15, 4),
-(20, 3),
-(20, 4);
+(15, 4);
 
 -- --------------------------------------------------------
 
@@ -337,14 +373,6 @@ CREATE TABLE `section_subjects` (
   `section_id` int(11) NOT NULL,
   `subject_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `section_subjects`
---
-
-INSERT INTO `section_subjects` (`section_id`, `subject_id`) VALUES
-(20, 13),
-(20, 14);
 
 -- --------------------------------------------------------
 
@@ -365,7 +393,8 @@ CREATE TABLE `students` (
 
 INSERT INTO `students` (`student_id`, `user_id`, `first_name`, `last_name`) VALUES
 (3, 41, 'Naruto', 'Uzumaki'),
-(4, 42, 'Monkey D.', 'Luffy');
+(4, 42, 'Monkey D.', 'Luffy'),
+(11, 44, 'Justin', 'Sibonga');
 
 -- --------------------------------------------------------
 
@@ -394,17 +423,17 @@ CREATE TABLE `student_risk` (
 CREATE TABLE `subjects` (
   `subject_id` int(11) NOT NULL,
   `subject_name` varchar(100) NOT NULL,
-  `section_id` int(11) DEFAULT NULL
+  `section_id` int(11) DEFAULT NULL,
+  `passing_grade` decimal(5,2) DEFAULT 75.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `subjects`
 --
 
-INSERT INTO `subjects` (`subject_id`, `subject_name`, `section_id`) VALUES
-(5, 'Science', NULL),
-(13, 'Mathematics', NULL),
-(14, 'History', NULL);
+INSERT INTO `subjects` (`subject_id`, `subject_name`, `section_id`, `passing_grade`) VALUES
+(21, 'Filipino', NULL, 75.00),
+(22, 'Science', NULL, 75.00);
 
 -- --------------------------------------------------------
 
@@ -453,7 +482,8 @@ INSERT INTO `users` (`user_id`, `username`, `first_name`, `last_name`, `password
 (29, 'admin', 'Admin', 'User', '$2y$10$IaGhcvGNJYoX0NjaatqsaOvoN0pXGBwb4pr5IXSa3871730PbZDmi', 'admin@example.com', 'Admin', 'approved', '2024-11-21 06:31:35', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
 (40, 'Justin', 'Justin', 'Sibonga', '$2y$10$QaSfNlXj/1UG5Er9FNgvv.tMsrorDmKYyDvu9Ih5rpWwfi08esMXO', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-21 06:31:35', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
 (41, 'naruto_uzumaki', 'Naruto', 'Uzumaki', '$2y$10$dummyhashedpassword1', 'naruto.uzumaki@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL),
-(42, 'monkey_luffy', 'Monkey D.', 'Luffy', '$2y$10$dummyhashedpassword2', 'monkey.luffy@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL);
+(42, 'monkey_luffy', 'Monkey D.', 'Luffy', '$2y$10$dummyhashedpassword2', 'monkey.luffy@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL),
+(44, 'justin', 'Justin', 'Sibonga', '$2y$10$RfXDQjnNMuAFGuKB2fVKveK3gx5/mLRPQvWmAxCQ7VGkKRZwvEGIe', 'pakalucamel@gmail.com', 'Student', 'approved', '2024-11-22 11:58:57', '4f8d16d6253b536e49dbe23666e33f95', 1, NULL, NULL, '1992-05-05', 'Male', NULL);
 
 -- --------------------------------------------------------
 
@@ -468,6 +498,45 @@ CREATE TABLE `user_approval_logs` (
   `actioned_by` int(11) NOT NULL,
   `action_timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `vw_complete_student_performance`
+-- (See below for the actual view)
+--
+CREATE TABLE `vw_complete_student_performance` (
+`student_id` int(11)
+,`first_name` varchar(50)
+,`last_name` varchar(50)
+,`section_id` int(11)
+,`section_name` varchar(255)
+,`subject_id` int(11)
+,`subject_name` varchar(100)
+,`quarter` tinyint(4)
+,`component_name` varchar(50)
+,`weight` decimal(5,2)
+,`grade` decimal(5,2)
+,`subcategories` longtext
+,`remarks` varchar(10)
+,`academic_year` varchar(9)
+,`attendance_percentage` decimal(29,2)
+,`ranking_position` int(11)
+);
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `vw_student_attendance`
+-- (See below for the actual view)
+--
+CREATE TABLE `vw_student_attendance` (
+`student_id` int(11)
+,`quarter` int(1)
+,`total_days` bigint(21)
+,`attended_days` decimal(25,2)
+,`attendance_percentage` decimal(29,2)
+);
 
 -- --------------------------------------------------------
 
@@ -492,6 +561,24 @@ CREATE TABLE `vw_student_grades` (
 ,`remarks` varchar(10)
 ,`academic_year` varchar(9)
 );
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `vw_complete_student_performance`
+--
+DROP TABLE IF EXISTS `vw_complete_student_performance`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_complete_student_performance`  AS SELECT `g`.`student_id` AS `student_id`, `s`.`first_name` AS `first_name`, `s`.`last_name` AS `last_name`, `g`.`section_id` AS `section_id`, `sec`.`section_name` AS `section_name`, `g`.`subject_id` AS `subject_id`, `sub`.`subject_name` AS `subject_name`, `g`.`quarter` AS `quarter`, `gc`.`component_name` AS `component_name`, `gc`.`weight` AS `weight`, `g`.`grade` AS `grade`, `g`.`subcategories` AS `subcategories`, `g`.`remarks` AS `remarks`, `g`.`academic_year` AS `academic_year`, coalesce(`a`.`attendance_percentage`,0) AS `attendance_percentage`, `cr`.`ranking_position` AS `ranking_position` FROM ((((((`grades` `g` join `students` `s` on(`g`.`student_id` = `s`.`student_id`)) join `sections` `sec` on(`g`.`section_id` = `sec`.`section_id`)) join `subjects` `sub` on(`g`.`subject_id` = `sub`.`subject_id`)) join `grade_components` `gc` on(`g`.`component_id` = `gc`.`component_id`)) left join `vw_student_attendance` `a` on(`g`.`student_id` = `a`.`student_id` and `g`.`quarter` = `a`.`quarter`)) left join `class_rankings` `cr` on(`g`.`student_id` = `cr`.`student_id` and `g`.`quarter` = `cr`.`quarter`)) WHERE `cr`.`created_at` = (select max(`cr2`.`created_at`) from `class_rankings` `cr2` where `cr2`.`student_id` = `g`.`student_id` AND `cr2`.`quarter` = `g`.`quarter`) ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `vw_student_attendance`
+--
+DROP TABLE IF EXISTS `vw_student_attendance`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_student_attendance`  AS SELECT `a`.`student_id` AS `student_id`, quarter(`a`.`date`) AS `quarter`, count(0) AS `total_days`, sum(case when `a`.`status` = 'Present' then 1 when `a`.`status` = 'Absent' then 0 when `a`.`status` = 'Late' then 0.5 when `a`.`status` = 'Excused' then 0.75 end) AS `attended_days`, round(sum(case when `a`.`status` = 'Present' then 1 when `a`.`status` = 'Absent' then 0 when `a`.`status` = 'Late' then 0.5 when `a`.`status` = 'Excused' then 0.75 end) / count(0) * 100,2) AS `attendance_percentage` FROM `attendance` AS `a` GROUP BY `a`.`student_id`, quarter(`a`.`date`) ;
 
 -- --------------------------------------------------------
 
@@ -548,7 +635,8 @@ ALTER TABLE `attendance`
 ALTER TABLE `class_rankings`
   ADD PRIMARY KEY (`ranking_id`),
   ADD KEY `student_id` (`student_id`),
-  ADD KEY `instructor_id` (`instructor_id`);
+  ADD KEY `instructor_id` (`instructor_id`),
+  ADD KEY `idx_student_quarter` (`student_id`,`quarter`);
 
 --
 -- Indexes for table `deleted_users_history`
@@ -610,6 +698,15 @@ ALTER TABLE `instructors`
 ALTER TABLE `notifications`
   ADD PRIMARY KEY (`notification_id`),
   ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `participation`
+--
+ALTER TABLE `participation`
+  ADD PRIMARY KEY (`participation_id`),
+  ADD KEY `student_id` (`student_id`),
+  ADD KEY `section_id` (`section_id`),
+  ADD KEY `subject_id` (`subject_id`);
 
 --
 -- Indexes for table `performance_predictions`
@@ -713,13 +810,13 @@ ALTER TABLE `user_approval_logs`
 -- AUTO_INCREMENT for table `action_logs`
 --
 ALTER TABLE `action_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `activity_types`
@@ -755,19 +852,19 @@ ALTER TABLE `deleted_users_history`
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `feedback_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `feedback_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `grades`
 --
 ALTER TABLE `grades`
-  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=254;
 
 --
 -- AUTO_INCREMENT for table `grade_components`
 --
 ALTER TABLE `grade_components`
-  MODIFY `component_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `component_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `grade_subcategories`
@@ -791,7 +888,13 @@ ALTER TABLE `instructors`
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `participation`
+--
+ALTER TABLE `participation`
+  MODIFY `participation_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `performance_predictions`
@@ -815,13 +918,13 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
-  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `student_risk`
@@ -833,7 +936,7 @@ ALTER TABLE `student_risk`
 -- AUTO_INCREMENT for table `subjects`
 --
 ALTER TABLE `subjects`
-  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `subject_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `teacher_evaluations`
@@ -845,7 +948,7 @@ ALTER TABLE `teacher_evaluations`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT for table `user_approval_logs`
@@ -932,7 +1035,15 @@ ALTER TABLE `instructors`
 -- Constraints for table `notifications`
 --
 ALTER TABLE `notifications`
-  ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
+  ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `participation`
+--
+ALTER TABLE `participation`
+  ADD CONSTRAINT `participation_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `participation_ibfk_2` FOREIGN KEY (`section_id`) REFERENCES `sections` (`section_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `participation_ibfk_3` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `performance_predictions`

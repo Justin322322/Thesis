@@ -3,7 +3,7 @@ session_start();
 
 // Check if the user is logged in as an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
-    header('Location: /AcadMeter/public/login.php');
+    header('Location: /AcadMeter/public/login.html');
     exit;
 }
 

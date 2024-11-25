@@ -54,7 +54,7 @@ $instructor_id = isset($instructorData[0]['instructor_id']) ? $instructorData[0]
 
 if ($instructor_id === null) {
     // Instructor not found, handle accordingly
-    header('Location: /AcadMeter/public/login.php');
+    header('Location: /AcadMeter/public/login.html');
     exit;
 }
 

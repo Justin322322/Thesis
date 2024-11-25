@@ -12,7 +12,7 @@ if (session_status() == PHP_SESSION_NONE) {
 
 // Check authentication
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
-    header("Location: /login.php");
+    header("Location: /login.html");
     exit();
 }
 

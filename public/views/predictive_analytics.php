@@ -8,7 +8,7 @@ if (session_status() == PHP_SESSION_NONE) {
 
 // Check if the user is authenticated and has the Instructor role
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
-    header('Location: /AcadMeter/public/login.php');
+    header('Location: /AcadMeter/public/login.html');
     exit;
 }
 

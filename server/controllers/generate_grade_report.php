@@ -10,7 +10,7 @@ session_start();
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
     ob_end_clean();
-    header('Location: /AcadMeter/public/login.php');
+    header('Location: /AcadMeter/public/login.html');
     exit;
 }
 

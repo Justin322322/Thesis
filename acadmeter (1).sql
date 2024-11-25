@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 24, 2024 at 04:56 AM
+-- Generation Time: Nov 24, 2024 at 05:31 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -147,10 +147,18 @@ CREATE TABLE `feedback` (
   `feedback_id` int(11) NOT NULL,
   `student_id` int(11) NOT NULL,
   `instructor_id` int(11) NOT NULL,
-  `feedback_message` text NOT NULL,
+  `feedback_text` text NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `student_reply` text DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `is_read` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `feedback`
+--
+
+INSERT INTO `feedback` (`feedback_id`, `student_id`, `instructor_id`, `feedback_text`, `created_at`, `is_read`) VALUES
+(5, 4, 1, 'adasdasdasdadsdas', '2024-11-24 16:24:56', 0),
+(6, 11, 1, 'Test Feedback 3232323', '2024-11-24 16:29:58', 0);
 
 -- --------------------------------------------------------
 
@@ -344,6 +352,13 @@ CREATE TABLE `sections` (
   `school_year` varchar(9) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `sections`
+--
+
+INSERT INTO `sections` (`section_id`, `section_name`, `subject_id`, `instructor_id`, `school_year`) VALUES
+(30, 'Apple', NULL, 40, '2024-2025');
+
 -- --------------------------------------------------------
 
 --
@@ -361,7 +376,9 @@ CREATE TABLE `section_students` (
 
 INSERT INTO `section_students` (`section_id`, `student_id`) VALUES
 (15, 3),
-(15, 4);
+(15, 4),
+(30, 4),
+(30, 11);
 
 -- --------------------------------------------------------
 
@@ -423,6 +440,7 @@ CREATE TABLE `student_risk` (
 CREATE TABLE `subjects` (
   `subject_id` int(11) NOT NULL,
   `subject_name` varchar(100) NOT NULL,
+  `instructor_id` int(11) NOT NULL,
   `section_id` int(11) DEFAULT NULL,
   `passing_grade` decimal(5,2) DEFAULT 75.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -431,9 +449,9 @@ CREATE TABLE `subjects` (
 -- Dumping data for table `subjects`
 --
 
-INSERT INTO `subjects` (`subject_id`, `subject_name`, `section_id`, `passing_grade`) VALUES
-(21, 'Filipino', NULL, 75.00),
-(22, 'Science', NULL, 75.00);
+INSERT INTO `subjects` (`subject_id`, `subject_name`, `instructor_id`, `section_id`, `passing_grade`) VALUES
+(21, 'Filipino', 0, NULL, 75.00),
+(22, 'Science', 0, NULL, 75.00);
 
 -- --------------------------------------------------------
 
@@ -480,7 +498,7 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`user_id`, `username`, `first_name`, `last_name`, `password`, `email`, `user_type`, `status`, `created_at`, `verification_code`, `verified`, `reset_token`, `reset_token_expiry`, `dob`, `sex`, `verification_timestamp`) VALUES
 (29, 'admin', 'Admin', 'User', '$2y$10$IaGhcvGNJYoX0NjaatqsaOvoN0pXGBwb4pr5IXSa3871730PbZDmi', 'admin@example.com', 'Admin', 'approved', '2024-11-21 06:31:35', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
-(40, 'Justin', 'Justin', 'Sibonga', '$2y$10$QaSfNlXj/1UG5Er9FNgvv.tMsrorDmKYyDvu9Ih5rpWwfi08esMXO', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-21 06:31:35', NULL, 1, NULL, NULL, NULL, 'Male', NULL),
+(40, 'Justin', 'Justin', 'Sibonga', '$2y$10$QaSfNlXj/1UG5Er9FNgvv.tMsrorDmKYyDvu9Ih5rpWwfi08esMXO', 'justinmarlosibonga@gmail.com', 'Instructor', 'approved', '2024-11-21 06:31:35', NULL, 1, '03d0317c10a3b6fcd844608a97df0c44', '2024-11-24 17:24:59', NULL, 'Male', NULL),
 (41, 'naruto_uzumaki', 'Naruto', 'Uzumaki', '$2y$10$dummyhashedpassword1', 'naruto.uzumaki@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL),
 (42, 'monkey_luffy', 'Monkey D.', 'Luffy', '$2y$10$dummyhashedpassword2', 'monkey.luffy@example.com', 'Student', 'approved', '2024-11-21 10:06:36', NULL, 0, NULL, NULL, NULL, 'Male', NULL),
 (44, 'justin', 'Justin', 'Sibonga', '$2y$10$RfXDQjnNMuAFGuKB2fVKveK3gx5/mLRPQvWmAxCQ7VGkKRZwvEGIe', 'pakalucamel@gmail.com', 'Student', 'approved', '2024-11-22 11:58:57', '4f8d16d6253b536e49dbe23666e33f95', 1, NULL, NULL, '1992-05-05', 'Male', NULL);
@@ -852,7 +870,7 @@ ALTER TABLE `deleted_users_history`
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `feedback_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `feedback_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `grades`
@@ -918,7 +936,7 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
-  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `section_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT for table `students`
@@ -1001,8 +1019,8 @@ ALTER TABLE `deleted_users_history`
 -- Constraints for table `feedback`
 --
 ALTER TABLE `feedback`
-  ADD CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `feedback_ibfk_2` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`),
+  ADD CONSTRAINT `feedback_ibfk_2` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`instructor_id`);
 
 --
 -- Constraints for table `grades`

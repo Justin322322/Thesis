@@ -1,75 +1,60 @@
 <?php
-// submit_feedback.php
+// server/controllers/submit_feedback.php
 
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../config/db_connection.php';
+require_once __DIR__ . '/../services/FeedbackService.php';
 
-// Start session if not already started
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+session_start();
 
 // Check if the user is logged in and is an instructor
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Instructor') {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
-// Get the instructor_id from the session
-$instructor_id = $_SESSION['user_id'];
+$userId = $_SESSION['user_id'];
 
-// Get the POST data
+// Fetch the corresponding instructor_id from the instructors table
+$stmt = $conn->prepare("SELECT instructor_id FROM instructors WHERE user_id = ?");
+if (!$stmt) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+    exit;
+}
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result && $row = $result->fetch_assoc()) {
+    $instructorId = (int) $row['instructor_id'];
+} else {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Instructor record not found']);
+    exit;
+}
+
+$feedbackService = new FeedbackService($conn, $instructorId);
+
+// Get the raw POST data
 $data = json_decode(file_get_contents('php://input'), true);
 
-$student_id = isset($data['student_id']) ? intval($data['student_id']) : 0;
-$feedback_text = isset($data['feedback']) ? trim($data['feedback']) : '';
-
-// Validate input
-if ($student_id <= 0 || empty($feedback_text)) {
-    echo json_encode(['success' => false, 'message' => 'Invalid input.']);
+if (!$data) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid input']);
     exit;
 }
 
-// Include database connection
-require_once __DIR__ . '/../../config/db_connection.php';
+$studentId = isset($data['student_id']) ? intval($data['student_id']) : 0;
+$feedbackText = isset($data['feedback']) ? trim($data['feedback']) : '';
 
-// Verify that the student is taught by the instructor
-$stmt = $conn->prepare("
-    SELECT s.student_id
-    FROM students s
-    INNER JOIN section_students ss ON s.student_id = ss.student_id
-    INNER JOIN sections sec ON ss.section_id = sec.section_id
-    WHERE sec.instructor_id = ? AND s.student_id = ?
-    GROUP BY s.student_id
-");
-if (!$stmt) {
-    echo json_encode(['success' => false, 'message' => 'Database error.']);
-    exit;
-}
-$stmt->bind_param('ii', $instructor_id, $student_id);
-$stmt->execute();
-$stmt->store_result();
+$result = $feedbackService->submitFeedback($studentId, $feedbackText);
 
-if ($stmt->num_rows == 0) {
-    echo json_encode(['success' => false, 'message' => 'You are not authorized to provide feedback to this student.']);
-    exit;
-}
-$stmt->close();
-
-// Insert feedback into the database
-$stmt = $conn->prepare("
-    INSERT INTO feedback (student_id, instructor_id, feedback_message)
-    VALUES (?, ?, ?)
-");
-if (!$stmt) {
-    echo json_encode(['success' => false, 'message' => 'Database error.']);
-    exit;
-}
-$stmt->bind_param('iis', $student_id, $instructor_id, $feedback_text);
-if ($stmt->execute()) {
-    echo json_encode(['success' => true]);
+if ($result['success']) {
+    echo json_encode(['success' => true, 'message' => 'Feedback submitted successfully']);
 } else {
-    echo json_encode(['success' => false, 'message' => 'Failed to submit feedback.']);
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $result['error']]);
 }
-$stmt->close();
-$conn->close();
+
 ?>

@@ -89,7 +89,7 @@ while ($row = $result->fetch_assoc()) {
 
     // Fetch areas of concern (subjects below threshold)
     $stmtAreas = $conn->prepare("
-        SELECT sub.subject_name
+        SELECT DISTINCT sub.subject_name
         FROM grades g
         JOIN subjects sub ON g.subject_id = sub.subject_id
         WHERE g.student_id = ? 
@@ -192,7 +192,7 @@ foreach ($gradingScale as $scale) {
     $pdfGenerator->addMultiCellCustom(0, 6, $scale, 0, 'L');
 }
 
-// Add graph
+// Add graph (Placeholder)
 if (!empty($averageGrades)) {
     $pdfGenerator->addGraph($averageGrades, 'Average Grades of At-Risk Students');
 }

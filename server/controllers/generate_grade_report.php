@@ -143,7 +143,7 @@ try {
         while ($row = $result->fetch_assoc()) {
             $subject = $row['subject_name'];
             $quarter = $row['quarter'];
-            
+
             if (!isset($grades[$subject])) {
                 $grades[$subject] = [
                     'quarters' => [1 => '', 2 => '', 3 => '', 4 => ''],

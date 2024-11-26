@@ -11,6 +11,11 @@ use PHPMailer\PHPMailer\Exception;
 $message = "";
 $alertClass = "danger";
 
+// Test database connection
+if ($conn->connect_error) {
+    die("Database connection failed: " . $conn->connect_error);
+}
+
 if (isset($_GET['code'])) {
     $code = $_GET['code'];
 
@@ -30,21 +35,46 @@ if (isset($_GET['code'])) {
         $update_stmt = $conn->prepare("UPDATE users SET verified = 1, verification_timestamp = CURRENT_TIMESTAMP WHERE verification_code = ?");
         $update_stmt->bind_param("s", $code);
         $update_stmt->execute();
+        $update_stmt->close();
 
         // Log the verification action
         $log_stmt = $conn->prepare("INSERT INTO activity_logs (user_id, activity_type) VALUES (?, 'Verification')");
         $log_stmt->bind_param("i", $user_id);
         $log_stmt->execute();
+        $log_stmt->close();
 
         // Create a notification for the admin
         $notification_message = "A new $user_type account has been verified and is pending approval: $full_name";
-        $admin_id = 1; // Assuming the admin user_id is 1, adjust if necessary
-        $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
-        $notification_stmt->bind_param("is", $admin_id, $notification_message);
-        $notification_stmt->execute();
+        $notification_type = 'account_verification'; // Define the notification type
 
-        // Email admin with verification notice
-        notifyAdmin($notification_message);
+        // Retrieve the admin's user_id and email dynamically
+        $admin_stmt = $conn->prepare("SELECT user_id, email FROM users WHERE user_type = 'Admin' LIMIT 1");
+        $admin_stmt->execute();
+        $admin_result = $admin_stmt->get_result();
+
+        if ($admin_result->num_rows > 0) {
+            $admin = $admin_result->fetch_assoc();
+            $admin_id = $admin['user_id'];
+            $admin_email = $admin['email'];
+            $admin_stmt->close();
+
+            // Insert the notification with notification_type
+            $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, message, notification_type) VALUES (?, ?, ?)");
+            $notification_stmt->bind_param("iss", $admin_id, $notification_message, $notification_type);
+
+            if (!$notification_stmt->execute()) {
+                error_log("Error inserting notification: " . $notification_stmt->error);
+            } else {
+                error_log("Notification inserted successfully.");
+            }
+            $notification_stmt->close();
+
+            // Email admin with verification notice
+            notifyAdmin($notification_message, $admin_email);
+        } else {
+            // Handle case where no admin user is found
+            error_log("Admin user not found. Cannot send notification.");
+        }
 
         // Personalized success message
         $message = "Congratulations, $full_name! Your email has been successfully verified. 
@@ -54,6 +84,8 @@ if (isset($_GET['code'])) {
     } else {
         $message = "Invalid or already used verification link.";
     }
+
+    $stmt->close();
 } else {
     $message = "No verification code provided.";
 }
@@ -61,26 +93,27 @@ if (isset($_GET['code'])) {
 $conn->close();
 
 // Function to send email notification to admin
-function notifyAdmin($message) {
+function notifyAdmin($message, $admin_email) {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
-        $mail->Host = 'smtp.gmail.com';
+        $mail->Host = 'smtp.gmail.com'; // Replace with your SMTP server
         $mail->SMTPAuth = true;
         $mail->Username = 'justinmarlosibonga@gmail.com'; // Replace with your email
         $mail->Password = 'mvnhppaolniedhvv'; // Replace with your email password or app password
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
 
-        $mail->setFrom('justinmarlosibonga@gmail.com', 'AcadMeter Admin');
-        $mail->addAddress('justinmarlosibonga@gmail.com'); // Replace with the admin's email
+        $mail->setFrom('your_email@example.com', 'AcadMeter Admin');
+        $mail->addAddress($admin_email); // Admin's email retrieved from database
         $mail->isHTML(true);
         $mail->Subject = 'New User Verification Notification';
         $mail->Body = "Admin,<br><br>$message<br><br>Thank you,<br>AcadMeter Team";
 
         $mail->send();
+        error_log("Admin notification email sent successfully.");
     } catch (Exception $e) {
-        error_log("Error sending admin notification: " . $e->getMessage());
+        error_log("Error sending admin notification: " . $mail->ErrorInfo);
     }
 }
 ?>

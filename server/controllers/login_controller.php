@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                     exit;
                 } else {
-                    header("Location: ../../public/login.html?error=" . urlencode("Your account is awaiting admin approval.") . "&email=" . urlencode($email_or_username));
+                    header("Location: ../../public/login.html?error=" . urlencode("Your account is awaiting admin approval, please visit admin office to approve your account.") . "&email=" . urlencode($email_or_username));
                     exit;
                 }
             } else {

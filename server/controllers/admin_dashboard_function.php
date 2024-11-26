@@ -44,7 +44,7 @@ switch ($action) {
         break;
     case 'update_user_status':
         if (isset($input['userId']) && isset($input['userAction'])) {
-            updateUserStatus($conn, $input['userId'], $input['userAction']);
+            updateUserStatus($conn, $input['userId'], $input['userAction'], $input);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Invalid data received']);
         }
@@ -56,6 +56,9 @@ switch ($action) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
 }
 
+/**
+ * Fetch and return dashboard statistics.
+ */
 function getDashboardStats($conn) {
     try {
         $data = [
@@ -70,6 +73,9 @@ function getDashboardStats($conn) {
     }
 }
 
+/**
+ * Retrieve and return pending users.
+ */
 function getPendingUsers($conn) {
     try {
         $stmt = $conn->prepare("SELECT user_id, first_name, last_name, user_type, email, status FROM users WHERE status = 'pending' AND verified = TRUE");
@@ -84,6 +90,9 @@ function getPendingUsers($conn) {
     }
 }
 
+/**
+ * Retrieve and return approved users.
+ */
 function getApprovedUsers($conn) {
     try {
         $stmt = $conn->prepare("SELECT user_id, first_name, last_name, user_type, email FROM users WHERE status = 'approved' AND user_type IN ('Instructor', 'Student')");
@@ -98,6 +107,9 @@ function getApprovedUsers($conn) {
     }
 }
 
+/**
+ * Delete a user from the system.
+ */
 function deleteUser($conn, $userId) {
     try {
         $conn->begin_transaction();
@@ -191,7 +203,15 @@ function deleteUser($conn, $userId) {
     }
 }
 
-function updateUserStatus($conn, $userId, $action) {
+/**
+ * Update the status of a user (approve/reject).
+ *
+ * @param mysqli $conn The database connection.
+ * @param int $userId The ID of the user to update.
+ * @param string $action The action to perform ('approve' or 'reject').
+ * @param array $input The input data, potentially containing 'employee_number'.
+ */
+function updateUserStatus($conn, $userId, $action, $input) {
     try {
         $conn->begin_transaction();
 
@@ -233,17 +253,41 @@ function updateUserStatus($conn, $userId, $action) {
             $message = ($newStatus === 'approved') ? "User has been successfully approved." : "User has been successfully rejected.";
             error_log("User status updated successfully: $message");
 
-            // If approved and user is a student, add to students table
-            if ($newStatus === 'approved' && $user['user_type'] === 'Student') {
-                $insertStudentStmt = $conn->prepare("INSERT INTO students (user_id, first_name, last_name) VALUES (?, ?, ?)");
-                if (!$insertStudentStmt) {
-                    throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+            // Handle based on user type
+            if ($newStatus === 'approved') {
+                if ($user['user_type'] === 'Student') {
+                    // Insert into students table
+                    $insertStudentStmt = $conn->prepare("INSERT INTO students (user_id, first_name, last_name) VALUES (?, ?, ?)");
+                    if (!$insertStudentStmt) {
+                        throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+                    }
+                    $insertStudentStmt->bind_param("iss", $userId, $user['first_name'], $user['last_name']);
+                    if (!$insertStudentStmt->execute()) {
+                        throw new Exception("Failed to insert user into students table: " . $insertStudentStmt->error);
+                    }
+                    $insertStudentStmt->close();
+                } elseif ($user['user_type'] === 'Instructor') {
+                    // Insert into instructors table
+                    // Use provided employee_number or generate one
+                    if (isset($input['employee_number']) && !empty(trim($input['employee_number']))) {
+                        $employeeNumber = trim($input['employee_number']);
+                    } else {
+                        // Auto-generate employee_number
+                        $employeeNumber = generateEmployeeNumber($conn);
+                    }
+
+                    // Optionally, validate the format of employee_number here
+
+                    $insertInstructorStmt = $conn->prepare("INSERT INTO instructors (user_id, employee_number) VALUES (?, ?)");
+                    if (!$insertInstructorStmt) {
+                        throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+                    }
+                    $insertInstructorStmt->bind_param("is", $userId, $employeeNumber);
+                    if (!$insertInstructorStmt->execute()) {
+                        throw new Exception("Failed to insert user into instructors table: " . $insertInstructorStmt->error);
+                    }
+                    $insertInstructorStmt->close();
                 }
-                $insertStudentStmt->bind_param("iss", $userId, $user['first_name'], $user['last_name']);
-                if (!$insertStudentStmt->execute()) {
-                    throw new Exception("Failed to insert user into students table: " . $insertStudentStmt->error);
-                }
-                $insertStudentStmt->close();
             }
 
             // Insert notification
@@ -286,6 +330,9 @@ function updateUserStatus($conn, $userId, $action) {
     }
 }
 
+/**
+ * Send email notification to the user regarding account approval/rejection.
+ */
 function sendEmailNotification($status, $userId, $conn) {
     // Fetch user email and name
     $emailQuery = $conn->prepare("SELECT email, first_name FROM users WHERE user_id = ?");
@@ -332,6 +379,9 @@ function sendEmailNotification($status, $userId, $conn) {
     }
 }
 
+/**
+ * Retrieve and return the latest notifications.
+ */
 function getNotifications($conn) {
     try {
         $stmt = $conn->prepare("SELECT notification_id, user_id, message, notification_type, is_read, created_at FROM notifications ORDER BY created_at DESC LIMIT 10");
@@ -344,5 +394,29 @@ function getNotifications($conn) {
     } catch (Exception $e) {
         echo json_encode(['status' => 'error', 'message' => 'Error fetching notifications: ' . $e->getMessage()]);
     }
+}
+
+/**
+ * Generates a unique employee number for instructors.
+ *
+ * @param mysqli $conn The database connection.
+ * @return string The generated employee number.
+ * @throws Exception If there's an error during generation.
+ */
+function generateEmployeeNumber($conn) {
+    // Fetch the last employee_number
+    $stmt = $conn->prepare("SELECT employee_number FROM instructors ORDER BY instructor_id DESC LIMIT 1");
+    if (!$stmt) {
+        throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $lastEmployeeNumber = $result->fetch_assoc()['employee_number'] ?? 'EMP0000';
+    $stmt->close();
+
+    // Extract the numeric part
+    $numericPart = (int) substr($lastEmployeeNumber, 3);
+    $newNumericPart = $numericPart + 1;
+    return 'EMP' . str_pad($newNumericPart, 4, '0', STR_PAD_LEFT);
 }
 ?>

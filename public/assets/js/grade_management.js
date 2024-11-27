@@ -23,6 +23,31 @@ $(document).ready(function() {
     $('#saveSubcategory').click(onSaveSubcategory);
     $('#gradeForm').submit(onSaveGrades);
     $('#subcategorySelect').change(updateSubcategoryDescription);
+    $(document).on('click', '.remove-subcategory-btn', function() {
+        const componentId = $(this).data('component-id');
+        const subcategoryName = $(this).data('subcategory-name');
+        const studentId = $(this).closest('tr').find('.student-name').data('student-id');
+    
+        // Confirm removal
+        if (confirm(`Are you sure you want to remove the subcategory "${subcategoryName}"?`)) {
+            // Remove subcategory from the data structure
+            if (studentsData[studentId] && studentsData[studentId].components[componentId]) {
+                studentsData[studentId].components[componentId].subcategories = studentsData[studentId].components[componentId].subcategories.filter(sub => sub.name !== subcategoryName);
+                
+                // Recalculate component grade if necessary
+                const componentData = studentsData[studentId].components[componentId];
+                if (componentData.subcategories.length > 0) {
+                    const total = componentData.subcategories.reduce((sum, sub) => sum + (parseFloat(sub.score) || 0), 0);
+                    componentData.grade = Math.round((total / componentData.subcategories.length) * 100) / 100;
+                } else {
+                    componentData.grade = 0;
+                }
+    
+                // Update the table
+                renderGradeTable();
+            }
+        }
+    });
 
     // Fetch sections
     function fetchSections() {
@@ -249,6 +274,14 @@ $(document).ready(function() {
             })
             .val(subcategory.score)
             .on('input', updateSubcategoryScore));
+        // Replace the text 'Remove' with a minus icon
+        row.append($('<button></button>')
+            .addClass('btn btn-danger btn-sm remove-subcategory-btn')
+            .attr({
+                'data-component-id': componentId,
+                'data-subcategory-name': subcategory.name
+            })
+            .html('<i class="fas fa-minus"></i>')); // Changed from .text('Remove')
         return row;
     }
 
@@ -476,11 +509,13 @@ $(document).ready(function() {
             }
             const existing = studentGrades.components[componentId].subcategories.find(s => s.name === subcategoryName);
             if (!existing) {
+                // ...existing code...
                 studentGrades.components[componentId].subcategories.push({
                     name: subcategoryName,
                     description: subcategoryDescription,
                     score: 0
                 });
+                // ...existing code...
             }
         });
     }

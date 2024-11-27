@@ -151,7 +151,7 @@ function loadClassStandings() {
                             bgColor = 'blue';
                             break;
                         case 'Satisfactory':
-                            bgColor = 'lightgray'; // Changed from white to light gray
+                            bgColor = 'lightgray'; 
                             break;
                         case 'Fair':
                             bgColor = 'orange';

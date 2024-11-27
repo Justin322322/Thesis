@@ -65,6 +65,95 @@ document.addEventListener('DOMContentLoaded', function() {
         }, false);
     }
 
+    // Add event delegation for subject table
+    const subjectsTable = document.querySelector('#manageSubjectsTable');
+    if (subjectsTable) {
+        subjectsTable.addEventListener('click', function(e) {
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            e.preventDefault();
+            
+            if (target.classList.contains('edit-subject')) {
+                const subjectId = target.dataset.subjectId;
+                const subjectName = target.dataset.subjectName;
+                openEditSubjectModal(subjectId, subjectName);
+            } else if (target.classList.contains('delete-subject')) {
+                const subjectId = target.dataset.subjectId;
+                const subjectName = target.dataset.subjectName;
+                openDeleteSubjectModal(subjectId, subjectName);
+            }
+        });
+    }
+
+    // Update delete subject form handler
+    const deleteSubjectForm = document.getElementById('deleteSubjectFormModal');
+    if (deleteSubjectForm) {
+        deleteSubjectForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const subjectId = document.getElementById('deleteSubjectId').value;
+            
+            fetch('/AcadMeter/server/controllers/class_management_controller.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=delete_subject&subject_id=${subjectId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showSuccess(data.message);
+                    loadSubjects();
+                    loadClassRoster();
+                    $('#deleteSubjectModal').modal('hide');
+                } else {
+                    showError(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An unexpected error occurred while deleting the subject.');
+            });
+        });
+    }
+
+    // Update delete section form handler
+    const deleteSectionForm = document.getElementById('deleteSectionFormModal');
+    if (deleteSectionForm) {
+        deleteSectionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const sectionId = document.getElementById('deleteSectionId').value;
+            
+            fetch('/AcadMeter/server/controllers/class_management_controller.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=delete_section&section_id=${sectionId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showSuccess(data.message);
+                    loadSections();
+                    loadClassRoster();
+                    $('#deleteSectionModal').modal('hide');
+                } else {
+                    showError(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An unexpected error occurred while deleting the section.');
+            });
+        });
+    }
+
+    // Remove the previous event listeners to avoid duplicates
+    document.getElementById('deleteSubjectFormModal').removeEventListener('submit', deleteSubject);
+    document.getElementById('deleteSectionFormModal').removeEventListener('submit', deleteSection);
+
     // Initial load
     loadSections();
     loadSubjects();

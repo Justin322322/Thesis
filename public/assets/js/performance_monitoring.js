@@ -70,8 +70,26 @@ function loadSectionSummaryChart() {
     fetch('/AcadMeter/server/controllers/get_section_summary.php?section_id=' + sectionId)
         .then(response => response.json())
         .then(data => {
-            const labels = Object.keys(data);
-            const values = Object.values(data);
+            const labels = data.map(item => item.grade_category);
+            const values = data.map(item => item.count);
+            const studentNames = data.map(item => item.student_names);
+
+            const backgroundColors = labels.map(label => {
+                switch (label) {
+                    case 'Outstanding':
+                        return 'green';
+                    case 'Very Satisfactory':
+                        return 'blue';
+                    case 'Satisfactory':
+                        return 'lightgray'; // Changed from white to light gray
+                    case 'Fair':
+                        return 'orange';
+                    case 'Needs Improvement':
+                        return 'red';
+                    default:
+                        return '#FFFFFF';
+                }
+            });
 
             if (sectionSummaryChart) sectionSummaryChart.destroy();
 
@@ -81,7 +99,7 @@ function loadSectionSummaryChart() {
                     labels: labels,
                     datasets: [{
                         data: values,
-                        backgroundColor: ['#4CAF50', '#FF6384', '#FFCE56', '#36A2EB', '#9966FF']
+                        backgroundColor: backgroundColors
                     }]
                 },
                 options: {
@@ -95,10 +113,11 @@ function loadSectionSummaryChart() {
                             callbacks: {
                                 label: function(context) {
                                     const label = context.label || '';
-                                    const value = context.parsed || 0;
+                                    const value = context.raw || 0;
                                     const total = context.chart._metasets[context.datasetIndex].total;
                                     const percentage = ((value / total) * 100).toFixed(2);
-                                    return `${label}: ${value} (${percentage}%)`;
+                                    const studentNamesList = studentNames[context.dataIndex];
+                                    return `${label}: ${value} (${percentage}%)\nStudents: ${studentNamesList}`;
                                 }
                             }
                         }
@@ -121,10 +140,33 @@ function loadClassStandings() {
             if (data.length > 0) {
                 data.forEach((student, index) => {
                     const tr = document.createElement('tr');
+                    const gradeCategory = student.grade_category;
+                    let bgColor;
+
+                    switch (gradeCategory) {
+                        case 'Outstanding':
+                            bgColor = 'green';
+                            break;
+                        case 'Very Satisfactory':
+                            bgColor = 'blue';
+                            break;
+                        case 'Satisfactory':
+                            bgColor = 'lightgray'; // Changed from white to light gray
+                            break;
+                        case 'Fair':
+                            bgColor = 'orange';
+                            break;
+                        case 'Needs Improvement':
+                            bgColor = 'red';
+                            break;
+                        default:
+                            bgColor = '#FFFFFF';
+                    }
+
                     tr.innerHTML = `
                         <td>${index + 1}</td>
                         <td>${student.student_name}</td>
-                        <td>${student.average_grade}</td>
+                        <td style="background-color: ${bgColor};">${student.average_grade}</td>
                     `;
                     tbody.appendChild(tr);
                 });

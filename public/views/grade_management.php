@@ -69,6 +69,30 @@ function getOrdinalSuffix($number) {
     }
     return $number . 'th';
 }
+
+// Function to handle CSV upload and process records
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
+    $file = $_FILES['csv_file']['tmp_name'];
+    $handle = fopen($file, "r");
+    if ($handle !== FALSE) {
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+            // Assuming CSV columns: student_id, component_id, subcategory_id, score
+            $student_id = $data[0];
+            $component_id = $data[1];
+            $subcategory_id = $data[2];
+            $score = $data[3];
+
+            // Insert or update the grade record in the database
+            $stmt = $conn->prepare("INSERT INTO grades (student_id, component_id, subcategory_id, score) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)");
+            $stmt->bind_param("iiid", $student_id, $component_id, $subcategory_id, $score);
+            $stmt->execute();
+        }
+        fclose($handle);
+        echo "CSV file processed successfully.";
+    } else {
+        echo "Error opening the file.";
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -272,6 +296,20 @@ function getOrdinalSuffix($number) {
                     <button type="submit" class="btn btn-primary save-grades mt-3">
                         <i class="fas fa-save"></i> Save Grades
                     </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- CSV Upload Form -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Upload CSV for Bulk Grade Recording</h5>
+                <form method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="csv_file">Select CSV File:</label>
+                        <input type="file" id="csv_file" name="csv_file" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload and Process</button>
                 </form>
             </div>
         </div>

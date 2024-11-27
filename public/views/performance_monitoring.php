@@ -75,6 +75,7 @@ $conn->close();
             <div class="mb-4">
                 <label for="sectionSelect" class="form-label">Select Section:</label>
                 <select id="sectionSelect" class="form-select" aria-label="Select Section">
+                    <option value="0">All Sections</option>
                     <?php foreach ($sections as $section): ?>
                         <option value="<?= $section['section_id'] ?>"><?= htmlspecialchars($section['section_name']) ?></option>
                     <?php endforeach; ?>
@@ -145,3 +146,4 @@ $conn->close();
     <script src="/AcadMeter/public/assets/js/performance_monitoring.js"></script>
 </body>
 </html>
+<!-- No changes needed as grade categories are handled in JavaScript and PHP backend -->

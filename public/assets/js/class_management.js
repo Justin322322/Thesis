@@ -24,20 +24,46 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('deleteSubjectFormModal').addEventListener('submit', deleteSubject);
     document.getElementById('deleteSectionFormModal').addEventListener('submit', deleteSection);
 
-    // Event delegation for dynamically created elements
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('edit-subject')) {
-            openEditSubjectModal(e.target.dataset.subjectId, e.target.dataset.subjectName);
-        } else if (e.target.classList.contains('delete-subject')) {
-            openDeleteSubjectModal(e.target.dataset.subjectId, e.target.dataset.subjectName);
-        } else if (e.target.classList.contains('delete-section')) {
-            openDeleteSectionModal(e.target.dataset.sectionId, e.target.dataset.sectionName);
-        } else if (e.target.classList.contains('remove-subject')) {
-            removeSubject(e.target.dataset.sectionId, e.target.dataset.subjectId);
-        } else if (e.target.classList.contains('remove-student')) {
-            removeStudent(e.target.dataset.sectionId, e.target.dataset.studentId);
-        }
-    });
+    // Change event delegation from document to rosterContainer
+    const rosterContainer = document.getElementById('classRosterContainer');
+    if (rosterContainer) {
+        rosterContainer.addEventListener('click', function(e) {
+            const editButton = e.target.closest('.edit-subject');
+            if (editButton && rosterContainer.contains(editButton)) {
+                e.preventDefault();
+                openEditSubjectModal(editButton.dataset.subjectId, editButton.dataset.subjectName);
+                return;
+            }
+
+            const deleteSubjectButton = e.target.closest('.delete-subject');
+            if (deleteSubjectButton && rosterContainer.contains(deleteSubjectButton)) {
+                e.preventDefault();
+                openDeleteSubjectModal(deleteSubjectButton.dataset.subjectId, deleteSubjectButton.dataset.subjectName);
+                return;
+            }
+
+            const deleteSectionButton = e.target.closest('.delete-section');
+            if (deleteSectionButton && rosterContainer.contains(deleteSectionButton)) {
+                e.preventDefault();
+                openDeleteSectionModal(deleteSectionButton.dataset.sectionId, deleteSectionButton.dataset.sectionName);
+                return;
+            }
+
+            const removeSubjectButton = e.target.closest('.remove-subject');
+            if (removeSubjectButton && rosterContainer.contains(removeSubjectButton)) {
+                e.preventDefault();
+                removeSubject(removeSubjectButton.dataset.sectionId, removeSubjectButton.dataset.subjectId);
+                return;
+            }
+
+            const removeStudentButton = e.target.closest('.remove-student');
+            if (removeStudentButton && rosterContainer.contains(removeStudentButton)) {
+                e.preventDefault();
+                removeStudent(removeStudentButton.dataset.sectionId, removeStudentButton.dataset.studentId);
+                return;
+            }
+        }, false);
+    }
 
     // Initial load
     loadSections();
@@ -357,7 +383,12 @@ function removeSubject(sectionId, subjectId) {
     });
 }
 
+let isRemovingStudent = false;
+
 function removeStudent(sectionId, studentId) {
+    if (isRemovingStudent) return; // Prevent multiple triggers
+    isRemovingStudent = true;
+
     if (confirm('Are you sure you want to remove this student from the section?')) {
         fetch('/AcadMeter/server/controllers/class_management_controller.php', {
             method: 'POST',
@@ -378,7 +409,12 @@ function removeStudent(sectionId, studentId) {
         .catch(error => {
             console.error('Error:', error);
             showError('An unexpected error occurred while removing the student. Please try again.');
+        })
+        .finally(() => {
+            isRemovingStudent = false;
         });
+    } else {
+        isRemovingStudent = false;
     }
 }
 

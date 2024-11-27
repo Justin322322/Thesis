@@ -141,17 +141,11 @@ function deleteSection($conn) {
     try {
         $conn->begin_transaction();
 
-        // Delete associated records in section_students and section_subjects
-        $stmt = $conn->prepare("DELETE FROM section_students WHERE section_id = ?");
-        $stmt->bind_param("i", $sectionId);
-        $stmt->execute();
-
-        $stmt = $conn->prepare("DELETE FROM section_subjects WHERE section_id = ?");
-        $stmt->bind_param("i", $sectionId);
-        $stmt->execute();
-
-        // Delete the section
-        $stmt = $conn->prepare("DELETE FROM sections WHERE section_id = ? AND instructor_id = ?");
+        // Delete associated records in section_students and section_subjects, and the section itself
+        $stmt = $conn->prepare("DELETE s, ss, ssub FROM sections s
+                                LEFT JOIN section_students ss ON s.section_id = ss.section_id
+                                LEFT JOIN section_subjects ssub ON s.section_id = ssub.section_id
+                                WHERE s.section_id = ? AND s.instructor_id = ?");
         $stmt->bind_param("ii", $sectionId, $_SESSION['user_id']);
         $stmt->execute();
 
@@ -381,16 +375,26 @@ function removeStudent($conn) {
     }
 
     try {
+        error_log("Attempting to remove student: section_id=$sectionId, student_id=$studentId");
+        $conn->begin_transaction();
+
+        // Delete the student from the section
         $stmt = $conn->prepare("DELETE FROM section_students WHERE section_id = ? AND student_id = ?");
         $stmt->bind_param("ii", $sectionId, $studentId);
         $stmt->execute();
 
         if ($stmt->affected_rows > 0) {
+            $conn->commit();
+            error_log("Student removed successfully: section_id=$sectionId, student_id=$studentId");
             echo json_encode(['status' => 'success', 'message' => 'Student removed successfully']);
         } else {
+            $conn->rollback();
+            error_log("Failed to remove student: section_id=$sectionId, student_id=$studentId");
             echo json_encode(['status' => 'error', 'message' => 'Failed to remove student. They may not be assigned to this section.']);
         }
     } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Error removing student: " . $e->getMessage());
         echo json_encode(['status' => 'error', 'message' => 'An error occurred while removing the student. Please try again.']);
     }
 }

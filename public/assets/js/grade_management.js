@@ -26,45 +26,12 @@ $(document).ready(function() {
 
     // Fetch sections
     function fetchSections() {
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            method: 'POST',
-            data: {
-                action: 'fetch_sections',
-                instructor_id: instructorId
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    populateDropdown('#section', response.sections, 'section_id', 'section_name', 'school_year');
-                } else {
-                    showError('Error fetching sections: ' + response.message);
-                }
-            },
-            error: handleAjaxError
-        });
+        ajaxRequest('fetch_sections', { instructor_id: instructorId }, populateSections);
     }
 
     // Fetch subjects for the selected section
     function fetchSubjects(sectionId) {
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            method: 'POST',
-            data: {
-                action: 'fetch_subjects',
-                section_id: sectionId
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    populateDropdown('#subject', response.subjects, 'subject_id', 'subject_name');
-                    $('#subject').prop('disabled', false);
-                } else {
-                    showError('Error fetching subjects: ' + response.message);
-                }
-            },
-            error: handleAjaxError
-        });
+        ajaxRequest('fetch_subjects', { section_id: sectionId }, populateSubjects);
     }
 
     // Fetch students and grades
@@ -77,38 +44,48 @@ $(document).ready(function() {
             return;
         }
 
+        ajaxRequest('fetch_grades', { section_id: sectionId, subject_id: subjectId, quarter: currentQuarter }, populateGrades);
+    }
+
+    // Helper function for AJAX requests
+    function ajaxRequest(action, data, successCallback) {
         $.ajax({
             url: '/AcadMeter/server/controllers/grade_management_controller.php',
             method: 'POST',
-            data: {
-                action: 'fetch_grades',
-                section_id: sectionId,
-                subject_id: subjectId,
-                quarter: currentQuarter
-            },
+            data: { action, ...data },
             dataType: 'json',
             success: function(response) {
                 if (response.status === 'success') {
-                    if (response.grades && response.grades.grades) {
-                        studentsData = response.grades.grades;
-                        academicYear = response.grades.academic_year;
-                        componentIdToDetails = response.components; // Ensure this is provided by backend
-                        renderGradeTable();
-                    } else {
-                        showError('No student data received from the server.');
-                        console.error('Server response:', response);
-                    }
+                    successCallback(response);
                 } else {
-                    showError('Error fetching grades: ' + response.message);
-                    console.error('Server error:', response);
+                    showError('Error: ' + response.message);
                 }
             },
-            error: function(xhr, status, error) {
-                showError('Error fetching grades. Please try again.');
-                console.error('AJAX error:', status, error);
-                console.error('Response:', xhr.responseText);
-            }
+            error: handleAjaxError
         });
+    }
+
+    // Populate sections dropdown
+    function populateSections(response) {
+        populateDropdown('#section', response.sections, 'section_id', 'section_name', 'school_year');
+    }
+
+    // Populate subjects dropdown
+    function populateSubjects(response) {
+        populateDropdown('#subject', response.subjects, 'subject_id', 'subject_name');
+        $('#subject').prop('disabled', false);
+    }
+
+    // Populate grades data
+    function populateGrades(response) {
+        if (response.grades && response.grades.grades) {
+            studentsData = response.grades.grades;
+            academicYear = response.grades.academic_year;
+            componentIdToDetails = response.components;
+            renderGradeTable();
+        } else {
+            showError('No student data received from the server.');
+        }
     }
 
     // Populate dropdown helper function
@@ -128,8 +105,7 @@ $(document).ready(function() {
         if (sectionId) {
             fetchSubjects(sectionId);
         } else {
-            $('#subject').prop('disabled', true).empty().append('<option value="">-- Select Subject --</option>');
-            $('#gradeTableBody, #detailedGradeTableBody').empty().append('<tr><td colspan="100%">No data available.</td></tr>');
+            resetSubjectAndTables();
         }
     }
 
@@ -137,21 +113,19 @@ $(document).ready(function() {
         if ($(this).val()) {
             fetchStudentsAndGrades();
         } else {
-            $('#gradeTableBody, #detailedGradeTableBody').empty().append('<tr><td colspan="100%">No data available.</td></tr>');
+            resetTables();
         }
     }
 
     function onQuarterChange() {
         currentQuarter = $(this).data('quarter');
-        $('.quarter-tabs .tab-btn').removeClass('active');
-        $(this).addClass('active');
+        updateActiveTab('.quarter-tabs .tab-btn', this);
         fetchStudentsAndGrades();
     }
 
     function onGradeTabChange() {
         currentTab = $(this).data('tab');
-        $('.grade-tabs .grade-tab').removeClass('active');
-        $(this).addClass('active');
+        updateActiveTab('.grade-tabs .grade-tab', this);
         $('.tab-content').removeClass('active');
         $(`#${currentTab}-tab`).addClass('active');
         renderGradeTable();
@@ -174,22 +148,7 @@ $(document).ready(function() {
             return;
         }
 
-        // Add the new subcategory to all students
-        $.each(studentsData, function(studentId, studentGrades) {
-            if (!studentGrades.components[componentId]) {
-                studentGrades.components[componentId] = { grade: 0, subcategories: [] };
-            }
-            // Check if subcategory already exists
-            const existing = studentGrades.components[componentId].subcategories.find(s => s.name === subcategoryName);
-            if (!existing) {
-                studentGrades.components[componentId].subcategories.push({
-                    name: subcategoryName,
-                    description: subcategoryDescription,
-                    score: 0
-                });
-            }
-        });
-
+        addSubcategoryToStudents(componentId, subcategoryName, subcategoryDescription);
         renderGradeTable();
         $('#subcategoryModal').modal('hide');
     }
@@ -200,27 +159,15 @@ $(document).ready(function() {
         const subjectId = $('#subject').val();
         const grades = collectGradesData();
 
-        $.ajax({
-            url: '/AcadMeter/server/controllers/grade_management_controller.php',
-            method: 'POST',
-            data: {
-                action: 'save_grades',
-                section_id: sectionId,
-                subject_id: subjectId,
-                quarter: currentQuarter,
-                academic_year: academicYear,
-                grades: JSON.stringify(grades)
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 'success') {
-                    showSuccess('Grades saved successfully');
-                    fetchStudentsAndGrades(); // Refresh the data
-                } else {
-                    showError('Error saving grades: ' + response.message);
-                }
-            },
-            error: handleAjaxError
+        ajaxRequest('save_grades', {
+            section_id: sectionId,
+            subject_id: subjectId,
+            quarter: currentQuarter,
+            academic_year: academicYear,
+            grades: JSON.stringify(grades)
+        }, function(response) {
+            showSuccess('Grades saved successfully');
+            fetchStudentsAndGrades();
         });
     }
 
@@ -230,7 +177,7 @@ $(document).ready(function() {
         tableBody.empty();
 
         if (Object.keys(studentsData).length === 0) {
-            tableBody.append('<tr><td colspan="' + (components.length + 4) + '">No students found for this section and subject.</td></tr>');
+            tableBody.append('<tr><td colspan="100%">No students found for this section and subject.</td></tr>');
             return;
         }
 
@@ -243,45 +190,47 @@ $(document).ready(function() {
                 const cell = $('<td></td>').addClass('grade-cell');
 
                 if (currentTab === 'summary') {
-                    cell.append($('<input>')
-                        .addClass('form-control grade-input')
-                        .attr({
-                            type: 'number',
-                            min: '0',
-                            max: '100',
-                            step: '0.01',
-                            'data-student-id': studentId,
-                            'data-component-id': component.component_id
-                        })
-                        .val(componentGrade.grade)
-                        .on('input', updateGrades));
+                    cell.append(createGradeInput(studentId, component.component_id, componentGrade.grade));
                 } else {
-                    const componentTotal = $('<div></div>')
-                        .addClass('component-total')
-                        .text(`${component.name} Total: ${componentGrade.grade || '0'}`);
-                    cell.append(componentTotal);
-
-                    const subcategoriesContainer = $('<div></div>').addClass('subcategories');
-                    $.each(componentGrade.subcategories, function(index, subcategory) {
-                        subcategoriesContainer.append(createSubcategoryRow(studentId, component.component_id, subcategory));
-                    });
-                    cell.append(subcategoriesContainer);
+                    cell.append(createComponentTotal(component, componentGrade.grade));
+                    cell.append(createSubcategoriesContainer(studentId, component.component_id, componentGrade.subcategories));
                 }
 
                 row.append(cell);
             });
 
-            // Add Initial Grade, Quarterly Grade, and Remarks columns
-            const initialGrade = calculateInitialGrade(studentData.components);
-            const quarterlyGrade = calculateQuarterlyGrade(studentData.components);
-            const remarks = getRemarks(quarterlyGrade);
-
-            row.append($('<td></td>').addClass('initial-grade').text(initialGrade.toFixed(2)));
-            row.append($('<td></td>').addClass('quarterly-grade').text(quarterlyGrade));
-            row.append($('<td></td>').addClass('remarks').text(remarks).addClass(quarterlyGrade >= 75 ? 'text-success' : 'text-danger'));
-
+            row.append(createGradeColumns(studentData.components));
             tableBody.append(row);
         });
+    }
+
+    function createGradeInput(studentId, componentId, grade) {
+        return $('<input>')
+            .addClass('form-control grade-input')
+            .attr({
+                type: 'number',
+                min: '0',
+                max: '100',
+                step: '0.01',
+                'data-student-id': studentId,
+                'data-component-id': componentId
+            })
+            .val(grade)
+            .on('input', updateGrades);
+    }
+
+    function createComponentTotal(component, grade) {
+        return $('<div></div>')
+            .addClass('component-total')
+            .text(`${component.name} Total: ${grade || '0'}`);
+    }
+
+    function createSubcategoriesContainer(studentId, componentId, subcategories) {
+        const container = $('<div></div>').addClass('subcategories');
+        $.each(subcategories, function(index, subcategory) {
+            container.append(createSubcategoryRow(studentId, componentId, subcategory));
+        });
+        return container;
     }
 
     function createSubcategoryRow(studentId, componentId, subcategory) {
@@ -303,22 +252,24 @@ $(document).ready(function() {
         return row;
     }
 
+    function createGradeColumns(componentsData) {
+        const initialGrade = calculateInitialGrade(componentsData);
+        const quarterlyGrade = calculateQuarterlyGrade(componentsData);
+        const remarks = getRemarks(quarterlyGrade);
+
+        return [
+            $('<td></td>').addClass('initial-grade').text(initialGrade.toFixed(2)),
+            $('<td></td>').addClass('quarterly-grade').text(quarterlyGrade),
+            $('<td></td>').addClass('remarks').text(remarks).addClass(quarterlyGrade >= 75 ? 'text-success' : 'text-danger')
+        ];
+    }
+
     function updateGrades() {
         const studentId = $(this).data('student-id');
         const componentId = $(this).data('component-id');
         const grade = parseFloat($(this).val()) || 0;
 
-        if (!studentsData[studentId]) {
-            studentsData[studentId] = { components: {} };
-        }
-        if (!studentsData[studentId].components) {
-            studentsData[studentId].components = {};
-        }
-        if (!studentsData[studentId].components[componentId]) {
-            studentsData[studentId].components[componentId] = { grade: 0, subcategories: [] };
-        }
-        studentsData[studentId].components[componentId].grade = grade;
-
+        updateStudentComponentGrade(studentId, componentId, grade);
         updateStudentTotals(studentId);
     }
 
@@ -328,6 +279,22 @@ $(document).ready(function() {
         const subcategoryName = $(this).data('subcategory');
         const score = parseFloat($(this).val()) || 0;
 
+        updateStudentSubcategoryScore(studentId, componentId, subcategoryName, score);
+        updateComponentTotal(studentId, componentId);
+        updateStudentTotals(studentId);
+    }
+
+    function updateStudentComponentGrade(studentId, componentId, grade) {
+        if (!studentsData[studentId]) {
+            studentsData[studentId] = { components: {} };
+        }
+        if (!studentsData[studentId].components[componentId]) {
+            studentsData[studentId].components[componentId] = { grade: 0, subcategories: [] };
+        }
+        studentsData[studentId].components[componentId].grade = grade;
+    }
+
+    function updateStudentSubcategoryScore(studentId, componentId, subcategoryName, score) {
         if (!studentsData[studentId].components[componentId]) {
             studentsData[studentId].components[componentId] = { grade: 0, subcategories: [] };
         }
@@ -338,43 +305,32 @@ $(document).ready(function() {
         } else {
             studentsData[studentId].components[componentId].subcategories.push({ name: subcategoryName, score: score, description: '' });
         }
-
-        updateComponentTotal(studentId, componentId);
-        updateStudentTotals(studentId);
     }
 
     function updateComponentTotal(studentId, componentId) {
         const componentData = studentsData[studentId].components[componentId];
         if (componentData && componentData.subcategories.length > 0) {
             const total = componentData.subcategories.reduce((sum, sub) => sum + (parseFloat(sub.score) || 0), 0) / componentData.subcategories.length;
-            componentData.grade = Math.round(total * 100) / 100; // Round to 2 decimal places
+            componentData.grade = Math.round(total * 100) / 100;
 
-            // Update the detailed tab
-            $(`#detailedGradeTableBody tr`).each(function() {
-                const currentRow = $(this);
-                const rowStudentId = currentRow.find('.student-name').data('student-id');
-                if (rowStudentId === parseInt(studentId)) {
-                    currentRow.find('.grade-cell').each(function() {
-                        const headerText = $(this).find('.component-header').text();
-                        if (headerText.includes(componentIdToDetails[componentId].name)) {
-                            $(this).find('.component-total').text(`${componentIdToDetails[componentId].name} Total: ${componentData.grade}`);
-                        }
-                    });
-                }
-            });
-
-            // Update the summary tab
-            $(`#gradeTableBody tr`).each(function() {
-                const currentRow = $(this);
-                const rowStudentId = currentRow.find('.student-name').data('student-id');
-                if (rowStudentId === parseInt(studentId)) {
-                    currentRow.find('.grade-cell input[data-component-id="' + componentId + '"]').val(componentData.grade);
-                }
-            });
-
-            // Update student totals
+            updateTableCell(studentId, componentId, componentData.grade);
             updateStudentTotals(studentId);
         }
+    }
+
+    function updateTableCell(studentId, componentId, grade) {
+        updateTableCellInTab('#detailedGradeTableBody', studentId, componentId, grade);
+        updateTableCellInTab('#gradeTableBody', studentId, componentId, grade);
+    }
+
+    function updateTableCellInTab(tableSelector, studentId, componentId, grade) {
+        $(`${tableSelector} tr`).each(function() {
+            const currentRow = $(this);
+            const rowStudentId = currentRow.find('.student-name').data('student-id');
+            if (rowStudentId === parseInt(studentId)) {
+                currentRow.find('.grade-cell input[data-component-id="' + componentId + '"]').val(grade);
+            }
+        });
     }
 
     function updateStudentTotals(studentId) {
@@ -383,22 +339,12 @@ $(document).ready(function() {
         const quarterlyGrade = calculateQuarterlyGrade(studentComponents);
         const remarks = getRemarks(quarterlyGrade);
 
-        // Update summary tab
-        $(`#gradeTableBody tr`).each(function() {
-            const currentRow = $(this);
-            const rowStudentId = currentRow.find('.student-name').data('student-id');
-            if (rowStudentId === parseInt(studentId)) {
-                currentRow.find('.initial-grade').text(initialGrade.toFixed(2));
-                currentRow.find('.quarterly-grade').text(quarterlyGrade);
-                currentRow.find('.remarks')
-                    .text(remarks)
-                    .removeClass('text-success text-danger')
-                    .addClass(quarterlyGrade >= 75 ? 'text-success' : 'text-danger');
-            }
-        });
+        updateStudentTotalsInTab('#gradeTableBody', studentId, initialGrade, quarterlyGrade, remarks);
+        updateStudentTotalsInTab('#detailedGradeTableBody', studentId, initialGrade, quarterlyGrade, remarks);
+    }
 
-        // Update detailed tab
-        $(`#detailedGradeTableBody tr`).each(function() {
+    function updateStudentTotalsInTab(tableSelector, studentId, initialGrade, quarterlyGrade, remarks) {
+        $(`${tableSelector} tr`).each(function() {
             const currentRow = $(this);
             const rowStudentId = currentRow.find('.student-name').data('student-id');
             if (rowStudentId === parseInt(studentId)) {
@@ -430,7 +376,6 @@ $(document).ready(function() {
     }
 
     function calculateQuarterlyGrade(componentsData) {
-        // Currently mirrors initial grade; can be customized for different computations
         return Math.min(Math.round(calculateInitialGrade(componentsData)), 100);
     }
 
@@ -487,6 +432,13 @@ $(document).ready(function() {
             .text(message)
             .append('<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>');
         $('#grade-management').prepend(alertDiv);
+
+        // Automatically hide the alert after 5 seconds
+        setTimeout(() => {
+            alertDiv.fadeOut(500, function() {
+                $(this).remove();
+            });
+        }, 5000);
     }
 
     function showSuccess(message) {
@@ -501,5 +453,35 @@ $(document).ready(function() {
         console.error('AJAX Error:', status, error);
         console.error('Response:', xhr.responseText);
         showError(`An error occurred: ${status}, ${error}. Please check the console for more details.`);
+    }
+
+    function resetSubjectAndTables() {
+        $('#subject').prop('disabled', true).empty().append('<option value="">-- Select Subject --</option>');
+        resetTables();
+    }
+
+    function resetTables() {
+        $('#gradeTableBody, #detailedGradeTableBody').empty().append('<tr><td colspan="100%">No data available.</td></tr>');
+    }
+
+    function updateActiveTab(tabSelector, activeElement) {
+        $(tabSelector).removeClass('active');
+        $(activeElement).addClass('active');
+    }
+
+    function addSubcategoryToStudents(componentId, subcategoryName, subcategoryDescription) {
+        $.each(studentsData, function(studentId, studentGrades) {
+            if (!studentGrades.components[componentId]) {
+                studentGrades.components[componentId] = { grade: 0, subcategories: [] };
+            }
+            const existing = studentGrades.components[componentId].subcategories.find(s => s.name === subcategoryName);
+            if (!existing) {
+                studentGrades.components[componentId].subcategories.push({
+                    name: subcategoryName,
+                    description: subcategoryDescription,
+                    score: 0
+                });
+            }
+        });
     }
 });

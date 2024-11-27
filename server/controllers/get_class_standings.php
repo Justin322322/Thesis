@@ -21,40 +21,73 @@ $section_id = isset($_GET['section_id']) ? intval($_GET['section_id']) : 0;
 // Include database connection
 require_once __DIR__ . '/../../config/db_connection.php';
 
-// Verify that the section belongs to the instructor
-$stmt = $conn->prepare("
-    SELECT section_id
-    FROM sections
-    WHERE section_id = ? AND instructor_id = ?
-");
-if (!$stmt) {
-    echo json_encode([]);
-    exit;
-}
-$stmt->bind_param('ii', $section_id, $instructor_id);
-$stmt->execute();
-$stmt->store_result();
+if ($section_id === 0) {
+    // Fetch students and their average grades across all sections taught by the instructor
+    $stmt = $conn->prepare("
+        SELECT s.student_id, s.first_name, s.last_name, AVG(g.grade) AS average_grade,
+            CASE
+                WHEN AVG(g.grade) >= 90 THEN 'Outstanding'
+                WHEN AVG(g.grade) >= 80 THEN 'Very Satisfactory'
+                WHEN AVG(g.grade) >= 70 THEN 'Satisfactory'
+                WHEN AVG(g.grade) >= 60 THEN 'Fair'
+                ELSE 'Needs Improvement'
+            END AS grade_category
+        FROM grades g
+        JOIN students s ON g.student_id = s.student_id
+        JOIN sections sec ON g.section_id = sec.section_id
+        WHERE sec.instructor_id = ?
+        GROUP BY s.student_id
+        ORDER BY average_grade DESC
+    ");
+    if (!$stmt) {
+        echo json_encode([]);
+        exit;
+    }
+    $stmt->bind_param('i', $instructor_id);
+} else {
+    // Verify that the section belongs to the instructor
+    $stmt = $conn->prepare("
+        SELECT section_id
+        FROM sections
+        WHERE section_id = ? AND instructor_id = ?
+    ");
+    if (!$stmt) {
+        echo json_encode([]);
+        exit;
+    }
+    $stmt->bind_param('ii', $section_id, $instructor_id);
+    $stmt->execute();
+    $stmt->store_result();
 
-if ($stmt->num_rows == 0) {
-    echo json_encode([]);
-    exit;
-}
-$stmt->close();
+    if ($stmt->num_rows == 0) {
+        echo json_encode([]);
+        exit;
+    }
+    $stmt->close();
 
-// Fetch students and their average grades in the section
-$stmt = $conn->prepare("
-    SELECT s.student_id, s.first_name, s.last_name, AVG(g.grade) AS average_grade
-    FROM grades g
-    JOIN students s ON g.student_id = s.student_id
-    WHERE g.section_id = ?
-    GROUP BY s.student_id
-    ORDER BY average_grade DESC
-");
-if (!$stmt) {
-    echo json_encode([]);
-    exit;
+    // Fetch students and their average grades in the specific section
+    $stmt = $conn->prepare("
+        SELECT s.student_id, s.first_name, s.last_name, AVG(g.grade) AS average_grade,
+            CASE
+                WHEN AVG(g.grade) >= 90 THEN 'Outstanding'
+                WHEN AVG(g.grade) >= 80 THEN 'Very Satisfactory'
+                WHEN AVG(g.grade) >= 70 THEN 'Satisfactory'
+                WHEN AVG(g.grade) >= 60 THEN 'Fair'
+                ELSE 'Needs Improvement'
+            END AS grade_category
+        FROM grades g
+        JOIN students s ON g.student_id = s.student_id
+        WHERE g.section_id = ?
+        GROUP BY s.student_id
+        ORDER BY average_grade DESC
+    ");
+    if (!$stmt) {
+        echo json_encode([]);
+        exit;
+    }
+    $stmt->bind_param('i', $section_id);
 }
-$stmt->bind_param('i', $section_id);
+
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -63,7 +96,8 @@ while ($row = $result->fetch_assoc()) {
     $classStandingsData[] = [
         'student_id' => $row['student_id'],
         'student_name' => $row['first_name'] . ' ' . $row['last_name'],
-        'average_grade' => round($row['average_grade'], 2)
+        'average_grade' => round($row['average_grade'], 2),
+        'grade_category' => $row['grade_category']
     ];
 }
 $stmt->close();

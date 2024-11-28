@@ -75,7 +75,9 @@ $conn->close();
             <div class="mb-4">
                 <label for="sectionSelect" class="form-label">Select Section:</label>
                 <select id="sectionSelect" class="form-select" aria-label="Select Section">
-                    <option value="0">All Sections</option>
+                    <?php if (count($sections) > 1): ?>
+                        <option value="0">All Sections</option>
+                    <?php endif; ?>
                     <?php foreach ($sections as $section): ?>
                         <option value="<?= $section['section_id'] ?>"><?= htmlspecialchars($section['section_name']) ?></option>
                     <?php endforeach; ?>
@@ -99,7 +101,7 @@ $conn->close();
                 <div class="col-md-6 mb-4">
                     <div class="card h-100">
                         <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Section Performance Breakdown</h5>
+                            <h5 class="mb-0">Performance Breakdown</h5>
                         </div>
                         <div class="card-body chart-container">
                             <canvas id="sectionSummaryChart"></canvas>
@@ -128,6 +130,42 @@ $conn->close();
                                     <!-- Data will be populated via AJAX -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Subject Performance -->
+            <div class="row">
+                <div class="col-md-12 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-info text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Top Performers by Subject</h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Performance Chart -->
+                                <div class="col-md-8">
+                                    <div class="chart-container">
+                                        <canvas id="studentSubjectChart"></canvas>
+                                    </div>
+                                </div>
+                                <!-- Top Performers List -->
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">Subject Champions</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="topPerformersList" class="list-group list-group-flush">
+                                                <!-- Top performers will be listed here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

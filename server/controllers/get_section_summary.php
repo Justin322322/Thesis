@@ -22,25 +22,19 @@ $section_id = isset($_GET['section_id']) ? intval($_GET['section_id']) : 0;
 require_once __DIR__ . '/../../config/db_connection.php';
 
 if ($section_id === 0) {
-    // Fetch grade distribution and student names across all sections taught by the instructor
     $stmt = $conn->prepare("
-        SELECT
-            CASE
-                WHEN g.grade >= 90 THEN 'Outstanding'
-                WHEN g.grade >= 80 THEN 'Very Satisfactory'
-                WHEN g.grade >= 70 THEN 'Satisfactory'
-                WHEN g.grade >= 60 THEN 'Fair'
-                ELSE 'Needs Improvement'
-            END AS grade_category,
-            GROUP_CONCAT(CONCAT(s.first_name, ' ', s.last_name) SEPARATOR ', ') AS student_names,
-            COUNT(*) AS count
-        FROM grades g
-        JOIN students s ON g.student_id = s.student_id
+        SELECT 
+            s.student_id,
+            CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+            (SELECT AVG(grade) FROM grades WHERE student_id = s.student_id) AS final_grade
+        FROM students s
+        JOIN grades g ON s.student_id = g.student_id
         JOIN sections sec ON g.section_id = sec.section_id
         WHERE sec.instructor_id = ?
-        GROUP BY grade_category
+        GROUP BY s.student_id
     ");
     if (!$stmt) {
+        error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
         echo json_encode([]);
         exit;
     }
@@ -53,13 +47,14 @@ if ($section_id === 0) {
         WHERE section_id = ? AND instructor_id = ?
     ");
     if (!$stmt) {
+        error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
         echo json_encode([]);
         exit;
     }
     $stmt->bind_param('ii', $section_id, $instructor_id);
     $stmt->execute();
     $stmt->store_result();
-    
+
     if ($stmt->num_rows == 0) {
         echo json_encode([]);
         exit;
@@ -68,41 +63,81 @@ if ($section_id === 0) {
 
     // Fetch grade distribution and student names for the specific section
     $stmt = $conn->prepare("
-        SELECT
-            CASE
-                WHEN grade >= 90 THEN 'Outstanding'
-                WHEN grade >= 80 THEN 'Very Satisfactory'
-                WHEN grade >= 70 THEN 'Satisfactory'
-                WHEN grade >= 60 THEN 'Fair'
-                ELSE 'Needs Improvement'
-            END AS grade_category,
-            GROUP_CONCAT(CONCAT(s.first_name, ' ', s.last_name) SEPARATOR ', ') AS student_names,
-            COUNT(*) AS count
-        FROM grades g
-        JOIN students s ON g.student_id = s.student_id
+        SELECT 
+            s.student_id,
+            CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+            (SELECT AVG(grade) FROM grades WHERE student_id = s.student_id AND section_id = ?) AS final_grade
+        FROM students s
+        JOIN grades g ON s.student_id = g.student_id
         WHERE g.section_id = ?
-        GROUP BY grade_category
+        GROUP BY s.student_id
     ");
     if (!$stmt) {
+        error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
         echo json_encode([]);
         exit;
     }
-    $stmt->bind_param('i', $section_id);
+    $stmt->bind_param('ii', $section_id, $section_id);
 }
 
 $stmt->execute();
 $result = $stmt->get_result();
 
-$sectionSummaryData = [];
+$categoryData = [
+    'Outstanding' => ['count' => 0, 'students' => []],
+    'Very Satisfactory' => ['count' => 0, 'students' => []],
+    'Satisfactory' => ['count' => 0, 'students' => []],
+    'Fair' => ['count' => 0, 'students' => []],
+    'Needs Improvement' => ['count' => 0, 'students' => []]
+];
+
 while ($row = $result->fetch_assoc()) {
-    $sectionSummaryData[] = [
-        'grade_category' => $row['grade_category'],
-        'student_names' => $row['student_names'],
-        'count' => (int)$row['count']
+    $grade = round($row['final_grade'], 2);
+    $category = '';
+
+    if ($grade >= 90) {
+        $category = 'Outstanding';
+    } elseif ($grade >= 80) {
+        $category = 'Very Satisfactory';
+    } elseif ($grade >= 70) {
+        $category = 'Satisfactory';
+    } elseif ($grade >= 60) {
+        $category = 'Fair';
+    } else {
+        $category = 'Needs Improvement';
+    }
+
+    $categoryData[$category]['count']++;
+    $categoryData[$category]['students'][] = [
+        'name' => $row['student_name'],
+        'grade' => $grade
     ];
+    $categoryData[$category]['total_grade'] = ($categoryData[$category]['total_grade'] ?? 0) + $grade;
 }
-$stmt->close();
-$conn->close();
+
+$sectionSummaryData = [];
+foreach ($categoryData as $category => $data) {
+    if ($data['count'] > 0) {
+        $avg_grade = round($data['total_grade'] / $data['count'], 2);
+
+        // Get unique students for this category
+        $unique_students = array_values(array_unique(array_map(function($student) {
+            return $student['name'];
+        }, $data['students'])));
+
+        $sectionSummaryData[] = [
+            'grade_category' => $category,
+            'percentage' => count($unique_students), // Use count of unique students
+            'average_grade' => $avg_grade,
+            'students' => array_values(array_reduce($data['students'], function($carry, $student) {
+                if (!isset($carry[$student['name']])) {
+                    $carry[$student['name']] = $student;
+                }
+                return $carry;
+            }, []))
+        ];
+    }
+}
 
 echo json_encode($sectionSummaryData);
 ?>

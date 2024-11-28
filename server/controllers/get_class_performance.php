@@ -22,16 +22,21 @@ require_once __DIR__ . '/../../config/db_connection.php';
 
 // Fetch average grades per section taught by the instructor
 $stmt = $conn->prepare("
-    SELECT sec.section_name, AVG(g.grade) AS average_score
+    SELECT 
+        sec.section_name, 
+        ROUND(AVG(g.grade), 2) AS average_score
     FROM grades g
     JOIN sections sec ON g.section_id = sec.section_id
     WHERE sec.instructor_id = ?
     GROUP BY sec.section_id, sec.section_name
+    ORDER BY sec.section_name
 ");
+
 if (!$stmt) {
     echo json_encode([]);
     exit;
 }
+
 $stmt->bind_param('i', $instructor_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -40,9 +45,10 @@ $classPerformanceData = [];
 while ($row = $result->fetch_assoc()) {
     $classPerformanceData[] = [
         'section_name' => $row['section_name'],
-        'average_score' => round($row['average_score'], 2)
+        'average_score' => (float)$row['average_score']
     ];
 }
+
 $stmt->close();
 $conn->close();
 

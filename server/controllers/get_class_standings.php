@@ -1,6 +1,11 @@
 <?php
 // get_class_standings.php
 
+// Enable error reporting for debugging (Remove or comment out in production)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 header('Content-Type: application/json');
 
 // Start session if not already started
@@ -22,9 +27,12 @@ $section_id = isset($_GET['section_id']) ? intval($_GET['section_id']) : 0;
 require_once __DIR__ . '/../../config/db_connection.php';
 
 if ($section_id === 0) {
-    // Fetch students and their average grades across all sections taught by the instructor
+    // Modified query to get all students across all sections for instructor
     $stmt = $conn->prepare("
-        SELECT s.student_id, s.first_name, s.last_name, AVG(g.grade) AS average_grade,
+        SELECT DISTINCT
+            s.student_id, 
+            CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+            ROUND(AVG(g.grade), 2) AS average_grade,
             CASE
                 WHEN AVG(g.grade) >= 90 THEN 'Outstanding'
                 WHEN AVG(g.grade) >= 80 THEN 'Very Satisfactory'
@@ -32,14 +40,16 @@ if ($section_id === 0) {
                 WHEN AVG(g.grade) >= 60 THEN 'Fair'
                 ELSE 'Needs Improvement'
             END AS grade_category
-        FROM grades g
-        JOIN students s ON g.student_id = s.student_id
+        FROM students s
+        JOIN grades g ON s.student_id = g.student_id
         JOIN sections sec ON g.section_id = sec.section_id
         WHERE sec.instructor_id = ?
         GROUP BY s.student_id
         ORDER BY average_grade DESC
     ");
     if (!$stmt) {
+        // Log the error and return an empty array
+        error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
         echo json_encode([]);
         exit;
     }
@@ -52,6 +62,7 @@ if ($section_id === 0) {
         WHERE section_id = ? AND instructor_id = ?
     ");
     if (!$stmt) {
+        error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
         echo json_encode([]);
         exit;
     }
@@ -82,6 +93,7 @@ if ($section_id === 0) {
         ORDER BY average_grade DESC
     ");
     if (!$stmt) {
+        error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
         echo json_encode([]);
         exit;
     }

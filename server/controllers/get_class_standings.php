@@ -27,11 +27,12 @@ $section_id = isset($_GET['section_id']) ? intval($_GET['section_id']) : 0;
 require_once __DIR__ . '/../../config/db_connection.php';
 
 if ($section_id === 0) {
-    // Modified query to get all students across all sections for instructor
+    // Modified query to select first_name and last_name
     $stmt = $conn->prepare("
         SELECT DISTINCT
             s.student_id, 
-            CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+            s.first_name,
+            s.last_name,
             ROUND(AVG(g.grade), 2) AS average_grade,
             CASE
                 WHEN AVG(g.grade) >= 90 THEN 'Outstanding'

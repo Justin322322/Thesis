@@ -186,7 +186,17 @@ function loadClassStandings(sectionId = "0") {
     tbody.innerHTML = '<tr><td colspan="3" class="text-center">Loading class standings...</td></tr>';
 
     fetch('/AcadMeter/server/controllers/get_class_standings.php?section_id=' + sectionId)
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            if (contentType && contentType.indexOf('application/json') !== -1) {
+                return response.json();
+            } else {
+                throw new TypeError('Unexpected response format');
+            }
+        })
         .then(data => {
             tbody.innerHTML = '';
             if (data.length > 0) {

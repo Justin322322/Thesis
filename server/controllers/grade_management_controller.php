@@ -71,7 +71,7 @@ class GradeManagementController {
                 $value = intval($value);
                 break;
             case 'string':
-                $value = filter_var($value, FILTER_SANITIZE_STRING);
+                $value = filter_var($value, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                 if ($value === false) {
                     throw new InvalidArgumentException("Invalid $key: must be a string");
                 }

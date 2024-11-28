@@ -20,19 +20,18 @@ $instructor_id = $_SESSION['user_id'];
 // Include database connection
 require_once __DIR__ . '/../../config/db_connection.php';
 
-// Fetch average grades per section taught by the instructor
+// Fetch class performance data
 $stmt = $conn->prepare("
     SELECT 
-        sec.section_name, 
-        ROUND(AVG(g.grade), 2) AS average_score
+        sec.section_name,
+        AVG(g.grade) AS average_score
     FROM grades g
     JOIN sections sec ON g.section_id = sec.section_id
     WHERE sec.instructor_id = ?
-    GROUP BY sec.section_id, sec.section_name
-    ORDER BY sec.section_name
+    GROUP BY sec.section_id
 ");
-
 if (!$stmt) {
+    error_log('Prepare failed: (' . $conn->errno . ') ' . $conn->error);
     echo json_encode([]);
     exit;
 }
@@ -45,7 +44,7 @@ $classPerformanceData = [];
 while ($row = $result->fetch_assoc()) {
     $classPerformanceData[] = [
         'section_name' => $row['section_name'],
-        'average_score' => (float)$row['average_score']
+        'average_score' => round($row['average_score'], 2)
     ];
 }
 

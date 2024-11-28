@@ -485,7 +485,16 @@ $(document).ready(function() {
     function handleAjaxError(xhr, status, error) {
         console.error('AJAX Error:', status, error);
         console.error('Response:', xhr.responseText);
-        showError(`An error occurred: ${status}, ${error}. Please check the console for more details.`);
+        try {
+            const jsonResponse = JSON.parse(xhr.responseText);
+            if (jsonResponse.status === 'success') {
+                successCallback(jsonResponse);
+            } else {
+                showError('Error: ' + jsonResponse.message);
+            }
+        } catch (e) {
+            showError('Invalid server response.');
+        }
     }
 
     function resetSubjectAndTables() {

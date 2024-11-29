@@ -16,7 +16,8 @@ class PredictiveAnalyticsModel {
                 s.student_id,
                 CONCAT(s.first_name, ' ', s.last_name) AS name,
                 sub.subject_name,
-                AVG(g.grade) AS average_grade
+                AVG(g.grade) AS average_grade,
+                sec.section_name
             FROM students s
             JOIN section_students ss ON s.student_id = ss.student_id
             JOIN sections sec ON ss.section_id = sec.section_id
@@ -24,7 +25,7 @@ class PredictiveAnalyticsModel {
                           AND g.section_id = sec.section_id
             JOIN subjects sub ON g.subject_id = sub.subject_id
             WHERE sec.instructor_id = ?
-            GROUP BY s.student_id, s.first_name, s.last_name, sub.subject_name
+            GROUP BY s.student_id, s.first_name, s.last_name, sub.subject_name, sec.section_name
             HAVING AVG(g.grade) < ?
             ORDER BY s.last_name, s.first_name, sub.subject_name ASC
         ";
@@ -53,6 +54,7 @@ class PredictiveAnalyticsModel {
                 $atRiskStudents[$studentId] = [
                     'student_id' => $studentId,
                     'name' => $row['name'],
+                    'section' => $row['section_name'],
                     'average_final_grade' => $averageGrade,
                     'risk_probability' => $this->calculateRiskProbability($averageGrade),
                     'suggested_intervention' => $this->getSuggestedIntervention($averageGrade),

@@ -114,17 +114,10 @@ function deleteUser($conn, $userId) {
     try {
         $conn->begin_transaction();
 
-        error_log("Starting deletion process for user ID: $userId");
-
-        // Fetch user details
-        $stmt = $conn->prepare("SELECT user_id, user_type FROM users WHERE user_id = ?");
-        if (!$stmt) {
-            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
-        }
+        // First, check if the user exists and get their type
+        $stmt = $conn->prepare("SELECT user_id, LOWER(user_type) as user_type FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $userId);
-        if (!$stmt->execute()) {
-            throw new Exception("Execute failed: (" . $stmt->errno . ") " . $stmt->error);
-        }
+        $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows === 0) {
@@ -134,72 +127,45 @@ function deleteUser($conn, $userId) {
         $user = $result->fetch_assoc();
         $userType = $user['user_type'];
 
-        error_log("User found. Type: $userType");
+        // Delete related records based on user type
+        switch ($userType) {
+            case 'student':
+                // Delete student-related records first
+                $conn->query("DELETE FROM feedback WHERE student_id IN (SELECT student_id FROM students WHERE user_id = $userId)");
+                $conn->query("DELETE FROM students WHERE user_id = $userId");
+                break;
+                
+            case 'instructor':
+                // Delete instructor-related records first
+                $conn->query("DELETE FROM feedback WHERE instructor_id IN (SELECT instructor_id FROM instructors WHERE user_id = $userId)");
+                $conn->query("DELETE FROM instructors WHERE user_id = $userId");
+                break;
+                
+            default:
+                throw new Exception("Invalid user type: " . $userType);
+        }
+
+        // Delete notifications
+        $conn->query("DELETE FROM notifications WHERE user_id = $userId");
+
+        // Delete from users table
+        $userStmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
+        $userStmt->bind_param("i", $userId);
+        $userStmt->execute();
 
         // Log the deletion
-        $logMessage = "User ID $userId of type $userType has been deleted.";
         $logStmt = $conn->prepare("INSERT INTO action_logs (user_id, action_type, description) VALUES (?, 'User Deletion', ?)");
-        if (!$logStmt) {
-            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
-        }
-        $logStmt->bind_param("is", $userId, $logMessage);
-        if (!$logStmt->execute()) {
-            throw new Exception("Execute failed: (" . $logStmt->errno . ") " . $logStmt->error);
-        }
-
-        // Delete user from specific tables based on user type
-        switch ($userType) {
-            case 'Student':
-                $stmt = $conn->prepare("DELETE FROM students WHERE user_id = ?");
-                break;
-            case 'Instructor':
-                $stmt = $conn->prepare("DELETE FROM instructors WHERE user_id = ?");
-                break;
-            case 'Admin':
-                $stmt = $conn->prepare("DELETE FROM admins WHERE user_id = ?");
-                break;
-            default:
-                throw new Exception("Invalid user type: $userType");
-        }
-
-        if (!$stmt) {
-            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
-        }
-        $stmt->bind_param("i", $userId);
-        if (!$stmt->execute()) {
-            throw new Exception("Execute failed: (" . $stmt->errno . ") " . $stmt->error);
-        }
-
-        if ($stmt->affected_rows === 0) {
-            error_log("No rows affected when deleting from $userType table for user ID: $userId");
-        } else {
-            error_log("Successfully deleted from $userType table for user ID: $userId");
-        }
-
-        // Delete user from users table
-        $deleteUserStmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
-        if (!$deleteUserStmt) {
-            throw new Exception("Prepare failed: (" . $conn->errno . ") " . $conn->error);
-        }
-        $deleteUserStmt->bind_param("i", $userId);
-        if (!$deleteUserStmt->execute()) {
-            throw new Exception("Execute failed: (" . $deleteUserStmt->errno . ") " . $deleteUserStmt->error);
-        }
-
-        if ($deleteUserStmt->affected_rows === 0) {
-            throw new Exception("Failed to delete user from users table. User ID: $userId");
-        }
-
-        error_log("Successfully deleted user from users table. User ID: $userId");
+        $logMessage = "User ID $userId of type $userType has been deleted.";
+        $logStmt->bind_param("is", $_SESSION['user_id'], $logMessage);
+        $logStmt->execute();
 
         $conn->commit();
-
-        error_log("User deletion process completed successfully for User ID: $userId");
-        echo json_encode(['status' => 'success', 'message' => 'User deleted successfully.']);
+        echo json_encode(['status' => 'success', 'message' => 'User deleted successfully']);
+        
     } catch (Exception $e) {
         $conn->rollback();
-        error_log("Error in deleteUser function: " . $e->getMessage());
-        echo json_encode(['status' => 'error', 'message' => 'Failed to delete user: ' . $e->getMessage()]);
+        error_log("Delete user error: " . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
 }
 

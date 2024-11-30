@@ -19,14 +19,23 @@ class DashboardModel {
     }
 
     public function getAtRiskStudentsCount() {
-        $query = "SELECT COUNT(DISTINCT s.student_id) as total
-                  FROM students s
-                  JOIN grades g ON s.student_id = g.student_id
-                  GROUP BY s.student_id
-                  HAVING AVG(g.grade) <= 74";
+        $query = "SELECT COUNT(DISTINCT temp.student_id) as total
+                  FROM (
+                      SELECT g.student_id,
+                             g.section_id,
+                             g.subject_id,
+                             g.quarter,
+                             SUM(g.grade * gc.weight) / SUM(gc.weight) as final_grade
+                      FROM grades g
+                      JOIN grade_components gc ON g.component_id = gc.component_id
+                      GROUP BY g.student_id, g.section_id, g.subject_id, g.quarter
+                      HAVING final_grade < 75.00
+                  ) temp";
+        
         $result = $this->conn->query($query);
         if ($result) {
-            return $result->num_rows;
+            $row = $result->fetch_assoc();
+            return $row['total'];
         }
         return 0;
     }
@@ -37,17 +46,37 @@ class DashboardModel {
             $year = date('Y');
         }
 
-        $query = "SELECT 
-                    MONTH(g.created_at) as month,
-                    AVG(g.grade) as average_grade
-                  FROM 
-                    grades g
-                  WHERE 
-                    YEAR(g.created_at) = ?
-                  GROUP BY 
-                    MONTH(g.created_at)
-                  ORDER BY 
-                    MONTH(g.created_at)";
+        $query = "WITH MonthlyStudentGrades AS (
+                    SELECT 
+                        MONTH(g.created_at) as month,
+                        g.student_id,
+                        gc.weight,
+                        LEAST(g.grade, 100) as grade  -- Ensure no grade exceeds 100
+                    FROM 
+                        grades g
+                        JOIN grade_components gc ON g.component_id = gc.component_id
+                    WHERE 
+                        YEAR(g.created_at) = ?
+                ),
+                FinalGrades AS (
+                    SELECT 
+                        month,
+                        student_id,
+                        LEAST(SUM(weight * grade) / 100, 100) as final_grade  -- Ensure final grade doesn't exceed 100
+                    FROM 
+                        MonthlyStudentGrades
+                    GROUP BY 
+                        month, student_id
+                )
+                SELECT 
+                    month,
+                    AVG(final_grade) as average_grade
+                FROM 
+                    FinalGrades
+                GROUP BY 
+                    month
+                ORDER BY 
+                    month";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bind_param("i", $year);
